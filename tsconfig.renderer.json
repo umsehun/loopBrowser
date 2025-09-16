@@ -17,6 +17,21 @@
         "allowSyntheticDefaultImports": true,
         "composite": true,
         "outDir": "dist",
+        "baseUrl": ".",
+        "paths": {
+            "@shared/*": [
+                "src/shared/*"
+            ],
+            "@main/*": [
+                "src/main/*"
+            ],
+            "@renderer/*": [
+                "src/renderer/*"
+            ],
+            "@preload/*": [
+                "src/preload/*"
+            ]
+        },
         "types": [
             "vite/client",
             "node"

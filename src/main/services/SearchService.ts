@@ -18,6 +18,7 @@ export class SearchService {
     private logger = createModuleLogger('SearchService')
     private suggestionCache = new Map<string, CachedSuggestions>()
     private readonly CACHE_EXPIRE_TIME = 5 * 60 * 1000 // 5분
+    private readonly MAX_CACHE_SIZE = 100 // GIGA-CHAD: 캐시 크기 제한으로 메모리 절약
 
     private constructor() { }
 
@@ -105,6 +106,9 @@ export class SearchService {
                 suggestions,
                 timestamp: Date.now()
             })
+
+            // GIGA-CHAD: 캐시 크기 관리
+            this.manageCacheSize()
 
             return suggestions
         } catch (error) {
@@ -207,5 +211,31 @@ export class SearchService {
     clearCache(): void {
         this.suggestionCache.clear()
         this.logger.info('🧹 GIGA-CHAD: Search suggestion cache cleared')
+    }
+
+    /**
+     * GIGA-CHAD: 캐시 크기 관리 (메모리 절약)
+     */
+    private manageCacheSize(): void {
+        if (this.suggestionCache.size > this.MAX_CACHE_SIZE) {
+            // 가장 오래된 항목들 제거
+            const entries = Array.from(this.suggestionCache.entries())
+                .sort((a, b) => a[1].timestamp - b[1].timestamp)
+
+            const toRemove = entries.slice(0, this.suggestionCache.size - this.MAX_CACHE_SIZE)
+            toRemove.forEach(([key]) => this.suggestionCache.delete(key))
+
+            this.logger.info(`🗑️ GIGA-CHAD: Removed ${toRemove.length} old cache entries`)
+        }
+    }
+
+    /**
+     * 캐시 통계
+     */
+    getCacheStats(): { size: number, memoryUsage: string } {
+        const size = this.suggestionCache.size
+        // 대략적인 메모리 사용량 계산 (단순 추정)
+        const memoryUsage = `${(size * 0.5).toFixed(2)}KB` // 각 항목당 ~0.5KB 가정
+        return { size, memoryUsage }
     }
 }

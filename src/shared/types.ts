@@ -71,6 +71,9 @@ export interface GigaBrowserAPI {
         getCPUUsage: () => Promise<number>
         onMetricsUpdate: (callback: (metrics: PerformanceMetrics) => void) => void
     }
+    ui: {
+        updateSidebarState: (collapsed: boolean) => Promise<{ success: boolean }>
+    }
     events: {
         onTabUpdate: (callback: (tabInfo: TabInfo) => void) => void
         onTabCreated: (callback: (tabInfo: TabInfo) => void) => void

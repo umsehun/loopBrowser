@@ -35,6 +35,11 @@ const api = {
         getAll: () => ipcRenderer.invoke('bookmarks:getAll')
     },
 
+    // UI 상태 관리
+    ui: {
+        updateSidebarState: (collapsed: boolean) => ipcRenderer.invoke('ui:updateSidebarState', collapsed)
+    },
+
     // 성능 모니터링
     performance: {
         getMemoryUsage: () => ipcRenderer.invoke('performance:getMemoryUsage'),

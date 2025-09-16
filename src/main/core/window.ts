@@ -13,9 +13,11 @@ export interface WindowConfig {
 }
 
 // GIGA-CHAD: 윈도우 관리 핵심 모듈
+import { createModuleLogger } from '@shared/logger'
+
 export class WindowManager {
     private static windows: Map<number, BrowserWindow> = new Map()
-    private static logger = require('../../shared/logger').createModuleLogger('WindowManager')
+    private static logger = createModuleLogger('WindowManager')
 
     /**
      * 최적화된 메인 윈도우 생성
@@ -138,5 +140,53 @@ export class WindowManager {
         })
         this.windows.clear()
         this.logger.info('🚪 GIGA-CHAD: All windows closed')
+    }
+
+    /**
+     * GIGA-CHAD: BrowserView 영역 계산 (UI와 분리)
+     */
+    static calculateBrowserViewBounds(window: BrowserWindow, sidebarCollapsed: boolean = false) {
+        const bounds = window.getBounds()
+
+        // UI 영역 정의 (React 컴포넌트 영역) - CSS와 정확히 매칭
+        const SIDEBAR_WIDTH = sidebarCollapsed ? 64 : 280  // 접힌 상태 고려
+        const HEADER_HEIGHT = 48   // HeaderBar 높이
+        // titleBarStyle: 'default'이므로 별도 타이틀바 없음
+
+        // 클라이언트 영역 사용 (타이틀바 제외)
+        const clientBounds = window.getContentBounds()
+
+        const calculatedBounds = {
+            x: SIDEBAR_WIDTH,
+            y: HEADER_HEIGHT,
+            width: clientBounds.width - SIDEBAR_WIDTH,
+            height: clientBounds.height - HEADER_HEIGHT
+        }
+
+        this.logger.info(`📐 GIGA-CHAD: BrowserView bounds calculated`, {
+            window: `${bounds.width}x${bounds.height}`,
+            client: `${clientBounds.width}x${clientBounds.height}`,
+            browserView: `${calculatedBounds.width}x${calculatedBounds.height} at (${calculatedBounds.x}, ${calculatedBounds.y})`,
+            sidebar: sidebarCollapsed ? 'collapsed' : 'expanded'
+        })
+
+        return calculatedBounds
+    }
+
+    /**
+     * 윈도우 리사이즈 시 BrowserView 영역 재계산
+     */
+    static setupBrowserViewResizing(window: BrowserWindow, onResize: (bounds: any) => void): void {
+        window.on('resized', () => {
+            const newBounds = this.calculateBrowserViewBounds(window)
+            onResize(newBounds)
+        })
+
+        window.on('moved', () => {
+            const newBounds = this.calculateBrowserViewBounds(window)
+            onResize(newBounds)
+        })
+
+        this.logger.info('🔧 GIGA-CHAD: BrowserView resize handlers set up')
     }
 }

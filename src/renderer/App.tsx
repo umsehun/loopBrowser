@@ -183,6 +183,22 @@ const App: React.FC = () => {
         }
     }
 
+    // GIGA-CHAD: 사이드바 토글 핸들러
+    const handleToggleSidebar = async () => {
+        const newCollapsed = !sidebarCollapsed
+        setSidebarCollapsed(newCollapsed)
+
+        try {
+            // 메인 프로세스에 사이드바 상태 전달
+            await window.gigaBrowser.ui.updateSidebarState(newCollapsed)
+            logger.info(`사이드바 상태 변경: ${newCollapsed ? 'collapsed' : 'expanded'}`)
+        } catch (error) {
+            logger.error('사이드바 상태 업데이트 실패:', error)
+            // 실패 시 상태 롤백
+            setSidebarCollapsed(!newCollapsed)
+        }
+    }
+
     // 현재 활성 탭 정보
     const activeTab = tabs.find(tab => tab.id === activeTabId)
 
@@ -219,7 +235,7 @@ const App: React.FC = () => {
                     onCloseTab={handleCloseTab}
                     onSwitchTab={handleSwitchTab}
                     isCollapsed={sidebarCollapsed}
-                    onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    onToggleCollapse={handleToggleSidebar}
                 />
 
                 {/* 오른쪽 브라우저 뷰 영역 - BrowserView가 이 영역에 표시됨 */}

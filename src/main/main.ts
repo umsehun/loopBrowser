@@ -1,5 +1,5 @@
 import { GigaBrowserApp } from './core/app'
-import { createModuleLogger } from '../shared/logger'
+import { createModuleLogger } from '@shared/logger'
 
 // GIGA-CHAD: 🚀 Giga Browser 진입점
 // 단순하고 깔끔한 시작점 - 모든 복잡한 로직은 모듈화됨

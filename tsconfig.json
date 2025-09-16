@@ -7,7 +7,22 @@
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "baseUrl": ".",
+        "paths": {
+            "@shared/*": [
+                "src/shared/*"
+            ],
+            "@main/*": [
+                "src/main/*"
+            ],
+            "@renderer/*": [
+                "src/renderer/*"
+            ],
+            "@preload/*": [
+                "src/preload/*"
+            ]
+        }
     },
     "references": [
         {

@@ -16,6 +16,21 @@
         "outDir": "dist",
         "rootDir": "src",
         "composite": true,
+        "baseUrl": ".",
+        "paths": {
+            "@shared/*": [
+                "src/shared/*"
+            ],
+            "@main/*": [
+                "src/main/*"
+            ],
+            "@renderer/*": [
+                "src/renderer/*"
+            ],
+            "@preload/*": [
+                "src/preload/*"
+            ]
+        },
         "types": [
             "node",
             "electron"

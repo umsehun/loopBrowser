@@ -116,6 +116,37 @@ export class TabHandler {
             }
         })
 
+        // GIGA-CHAD: 사이드바 상태 업데이트
+        ipcMain.handle('ui:updateSidebarState', async (event, collapsed: boolean) => {
+            try {
+                const senderWindow = BrowserWindow.fromWebContents(event.sender)
+                if (!senderWindow) {
+                    throw new Error('Sender window not found')
+                }
+
+                // 활성 탭의 BrowserView bounds 재계산
+                const activeTabId = this.tabManager.getActiveTabId()
+                if (activeTabId) {
+                    const browserView = this.tabManager.getBrowserView(activeTabId)
+                    if (browserView) {
+                        const bounds = WindowManager.calculateBrowserViewBounds(senderWindow, collapsed)
+                        browserView.setBounds(bounds)
+
+                        this.logger.info(`🔧 GIGA-CHAD: Sidebar state updated`, {
+                            collapsed,
+                            activeTab: activeTabId,
+                            newBounds: bounds
+                        })
+                    }
+                }
+
+                return { success: true }
+            } catch (error) {
+                this.logger.error('Failed to update sidebar state:', error)
+                throw error
+            }
+        })
+
         this.logger.info('Tab handlers registered')
     }
 
@@ -130,6 +161,7 @@ export class TabHandler {
         ipcMain.removeHandler('tab:updateUrl')
         ipcMain.removeHandler('tab:getActive')
         ipcMain.removeHandler('tab:getStats')
+        ipcMain.removeHandler('ui:updateSidebarState')
 
         this.logger.info('Tab handlers unregistered')
     }

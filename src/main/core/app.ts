@@ -134,11 +134,8 @@ export class GigaBrowserApp {
         this.mainWindow = WindowManager.createMainWindow()
 
         // TabManager에 메인 윈도우 설정
-        TabManager.getInstance().setMainWindow(this.mainWindow)
-
-        // 윈도우 크기 변경 이벤트 리스너 추가
-        this.mainWindow.on('resize', () => {
-            TabManager.getInstance().updateBrowserViewBounds()
+        TabManager.getInstance().setMainWindow(this.mainWindow).catch(error => {
+            this.logger.error('Failed to set main window on TabManager:', error)
         })
 
         // GIGA-CHAD: 글로벌 단축키 등록
