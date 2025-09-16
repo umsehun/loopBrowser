@@ -1,0 +1,7 @@
+/.github
+*node_modules
+*out
+*pnpm-lock.yaml
+*pnpm-workspace.yaml
+
+*.env
