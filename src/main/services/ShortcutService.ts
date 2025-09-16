@@ -116,7 +116,7 @@ export class ShortcutService {
         try {
             const tabManager = TabManager.getInstance()
             const newTab = await tabManager.createTab('https://www.google.com')
-            await tabManager.activateTab(newTab.id)
+            await tabManager.switchTab(newTab.id)
             ShortcutService.logger.info('Created new tab via shortcut')
         } catch (error) {
             ShortcutService.logger.error('Failed to create new tab', error)
@@ -155,7 +155,7 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                await tabManager.reload(activeTabId)
+                await tabManager.reload()
                 ShortcutService.logger.info('Reloaded current tab via shortcut')
             }
         } catch (error) {
@@ -171,9 +171,9 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                const browserView = tabManager['browserViews'].get(activeTabId)
-                if (browserView) {
-                    browserView.webContents.reloadIgnoringCache()
+                const webContentsView = tabManager.getWebContentsView(activeTabId)
+                if (webContentsView) {
+                    webContentsView.webContents.reloadIgnoringCache()
                     ShortcutService.logger.info('Hard reloaded current tab via shortcut')
                 }
             }
@@ -190,7 +190,7 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                await tabManager.goBack(activeTabId)
+                await tabManager.goBack()
                 ShortcutService.logger.info('Navigated back via shortcut')
             }
         } catch (error) {
@@ -206,7 +206,7 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                await tabManager.goForward(activeTabId)
+                await tabManager.goForward()
                 ShortcutService.logger.info('Navigated forward via shortcut')
             }
         } catch (error) {
@@ -222,9 +222,9 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                const browserView = tabManager['browserViews'].get(activeTabId)
-                if (browserView) {
-                    browserView.webContents.toggleDevTools()
+                const webContentsView = tabManager.getWebContentsView(activeTabId)
+                if (webContentsView) {
+                    webContentsView.webContents.toggleDevTools()
                     ShortcutService.logger.info('Toggled dev tools via shortcut')
                 }
             }
@@ -249,10 +249,10 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                const browserView = tabManager['browserViews'].get(activeTabId)
-                if (browserView) {
-                    const currentZoom = browserView.webContents.getZoomLevel()
-                    browserView.webContents.setZoomLevel(currentZoom + 0.5)
+                const webContentsView = tabManager.getWebContentsView(activeTabId)
+                if (webContentsView) {
+                    const currentZoom = webContentsView.webContents.getZoomLevel()
+                    webContentsView.webContents.setZoomLevel(currentZoom + 0.5)
                     ShortcutService.logger.info('Zoomed in via shortcut')
                 }
             }
@@ -269,10 +269,10 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                const browserView = tabManager['browserViews'].get(activeTabId)
-                if (browserView) {
-                    const currentZoom = browserView.webContents.getZoomLevel()
-                    browserView.webContents.setZoomLevel(currentZoom - 0.5)
+                const webContentsView = tabManager.getWebContentsView(activeTabId)
+                if (webContentsView) {
+                    const currentZoom = webContentsView.webContents.getZoomLevel()
+                    webContentsView.webContents.setZoomLevel(currentZoom - 0.5)
                     ShortcutService.logger.info('Zoomed out via shortcut')
                 }
             }
@@ -289,9 +289,9 @@ export class ShortcutService {
             const tabManager = TabManager.getInstance()
             const activeTabId = tabManager.getActiveTabId()
             if (activeTabId) {
-                const browserView = tabManager['browserViews'].get(activeTabId)
-                if (browserView) {
-                    browserView.webContents.setZoomLevel(0)
+                const webContentsView = tabManager.getWebContentsView(activeTabId)
+                if (webContentsView) {
+                    webContentsView.webContents.setZoomLevel(0)
                     ShortcutService.logger.info('Reset zoom via shortcut')
                 }
             }

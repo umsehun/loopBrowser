@@ -1,14 +1,17 @@
-import { BrowserView, BrowserWindow, WebContents } from 'electron'
+import { WebContentsView, BaseWindow } from 'electron'
 import { TabInfo } from '../../shared/types'
 import { createModuleLogger } from '../../shared/logger'
 import { ContextMenuService } from '../services/ContextMenuService'
+import { WindowManager, LayeredWindow } from '../core/window'
 
-// GIGA-CHAD: 탭 관리자 - Zen/Arc 스타일 최적화
+/**
+ * GIGA-CHAD: BaseWindow + WebContentsView 기반 탭 관리자
+ */
 export class TabManager {
     private static instance: TabManager
     private tabs: Map<string, TabInfo> = new Map()
-    private browserViews: Map<string, BrowserView> = new Map()
-    private mainWindow: BrowserWindow | null = null
+    private webContentsViews: Map<string, WebContentsView> = new Map()
+    private layeredWindow: LayeredWindow | null = null
     private activeTabId: string | null = null
     private logger = createModuleLogger('TabManager')
 
@@ -24,353 +27,241 @@ export class TabManager {
     }
 
     /**
-     * 메인 윈도우 설정
+     * GIGA-CHAD: LayeredWindow 설정
      */
-    async setMainWindow(window: BrowserWindow): Promise<void> {
-        this.mainWindow = window
-
-        // GIGA-CHAD: 윈도우 리사이즈 시 활성 BrowserView 크기 조정
-        const { WindowManager } = await import('../core/window')
-        WindowManager.setupBrowserViewResizing(window, (bounds: any) => {
-            if (this.activeTabId) {
-                const browserView = this.browserViews.get(this.activeTabId)
-                if (browserView) {
-                    browserView.setBounds(bounds)
-                }
-            }
-        })
-
-        this.logger.info('Main window set for TabManager')
+    setLayeredWindow(layeredWindow: LayeredWindow): void {
+        this.layeredWindow = layeredWindow
+        this.logger.info('LayeredWindow set for ModernTabManager')
     }
 
     /**
-     * 새 탭 생성
+     * GIGA-CHAD: 새 탭 생성 (WebContentsView 기반)
      */
-    async createTab(url: string = 'about:blank'): Promise<TabInfo> {
-        if (!this.mainWindow) {
-            throw new Error('Main window not set')
+    async createTab(url: string = 'https://www.google.com'): Promise<TabInfo> {
+        if (!this.layeredWindow) {
+            throw new Error('LayeredWindow not set')
         }
 
-        const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        const tabId = this.generateTabId()
 
-        // TabInfo 생성
+        // GIGA-CHAD: 새로운 WebContentsView 생성 (브라우저 콘텐츠용)
+        const webContentsView = new WebContentsView({
+            webPreferences: {
+                sandbox: true,
+                contextIsolation: true,
+                nodeIntegration: false,
+                webSecurity: true,
+                allowRunningInsecureContent: false,
+                experimentalFeatures: false,
+                backgroundThrottling: true,
+                devTools: false, // 프로덕션에서 DevTools 비활성화
+            }
+        })
+
+        // GIGA-CHAD: 탭 정보 생성
         const tabInfo: TabInfo = {
             id: tabId,
+            title: 'New Tab',
             url: url,
-            title: url === 'about:blank' ? '새 탭' : '로딩 중...',
             favicon: '',
-            loading: true,
+            loading: false,
             canGoBack: false,
             canGoForward: false,
             isActive: false,
             suspended: false
         }
 
-        // BrowserView 생성 (GIGA-CHAD: 메모리 최적화)
-        const browserView = new BrowserView({
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
-                backgroundThrottling: true, // GIGA-CHAD: 백그라운드 최적화
-                preload: __dirname + '/../../preload/preload.js',
-                // GIGA-CHAD: 추가 메모리 최적화 옵션들
-                webSecurity: true,
-                allowRunningInsecureContent: false,
-                experimentalFeatures: false,
-                plugins: false, // 플러그인 비활성화
-                devTools: process.env.NODE_ENV === 'development', // 개발 모드에서만 devTools
-                // 캐시 제한
-                partition: 'persist:browser' // 파티션으로 캐시 분리
-            }
-        })
-
-        // 이벤트 리스너 설정
-        this.setupBrowserViewEvents(browserView, tabInfo)
-
-        // GIGA-CHAD: 팝업 창 차단 - 새 창을 현재 탭에서 로드
-        this.setupPopupBlocking(browserView, tabInfo)
-
-        // GIGA-CHAD: 컨텍스트 메뉴 등록
-        ContextMenuService.getInstance().registerContextMenu(browserView.webContents)
-
-        // 저장
+        // GIGA-CHAD: 탭과 뷰 등록
         this.tabs.set(tabId, tabInfo)
-        this.browserViews.set(tabId, browserView)
+        this.webContentsViews.set(tabId, webContentsView)
 
-        // URL 로드
-        if (url !== 'about:blank') {
-            browserView.webContents.loadURL(url)
-        }
+        // GIGA-CHAD: WebContents 이벤트 핸들러 설정
+        this.setupWebContentsEvents(tabId, webContentsView)
+
+        // GIGA-CHAD: 컨텍스트 메뉴 등록 (TODO: ContextMenuService 메서드 확인 필요)
+        // ContextMenuService.registerContextMenu(webContentsView.webContents)
+
+        // GIGA-CHAD: URL 로드
+        await webContentsView.webContents.loadURL(url)
+
+        // GIGA-CHAD: 새 탭을 활성화
+        await this.switchTab(tabId)
 
         this.logger.info(`Tab created - ${tabId}`)
+
         return tabInfo
     }
 
     /**
-     * BrowserView 이벤트 설정
-     */
-    private setupBrowserViewEvents(browserView: BrowserView, tabInfo: TabInfo): void {
-        const webContents = browserView.webContents
-
-        // 페이지 로딩 시작
-        webContents.on('did-start-loading', () => {
-            tabInfo.loading = true
-            this.updateTab(tabInfo)
-        })
-
-        // 페이지 로딩 완료
-        webContents.on('did-finish-load', () => {
-            tabInfo.loading = false
-            tabInfo.url = webContents.getURL()
-            tabInfo.title = webContents.getTitle()
-            tabInfo.canGoBack = webContents.navigationHistory.canGoBack()
-            tabInfo.canGoForward = webContents.navigationHistory.canGoForward()
-            this.updateTab(tabInfo)
-        })
-
-        // 타이틀 변경
-        webContents.on('page-title-updated', (_, title) => {
-            tabInfo.title = title
-            this.updateTab(tabInfo)
-        })
-
-        // 페이지 파비콘 변경
-        webContents.on('page-favicon-updated', (_, favicons) => {
-            if (favicons.length > 0) {
-                tabInfo.favicon = favicons[0]
-                this.updateTab(tabInfo)
-            }
-        })
-
-        // 네비게이션 이벤트
-        webContents.on('did-navigate', (_, navigationUrl) => {
-            tabInfo.url = navigationUrl
-            tabInfo.canGoBack = webContents.navigationHistory.canGoBack()
-            tabInfo.canGoForward = webContents.navigationHistory.canGoForward()
-            this.updateTab(tabInfo)
-        })
-
-        // 네비게이션 실패
-        webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
-            this.logger.error(`⚠️ GIGA-CHAD: Navigation failed for ${tabInfo.id}: ${errorDescription}`)
-            tabInfo.loading = false
-            tabInfo.title = '페이지를 불러올 수 없습니다'
-            this.updateTab(tabInfo)
-        })
-    }
-
-    /**
-     * 팝업 창 차단 설정 - GIGA-CHAD
-     */
-    private setupPopupBlocking(browserView: BrowserView, tabInfo: TabInfo): void {
-        const webContents = browserView.webContents
-
-        // 새 창 열기 요청을 현재 탭에서 처리
-        webContents.setWindowOpenHandler(({ url, frameName, features, disposition }) => {
-            this.logger.info(`🚫 GIGA-CHAD: Popup blocked and redirected - ${url}`)
-
-            // 현재 탭에서 URL 로드 (독립 창 생성 방지)
-            webContents.loadURL(url).catch(error => {
-                this.logger.error(`Failed to load redirected URL: ${url}`, error)
-            })
-
-            // 새 창 생성을 거부
-            return { action: 'deny' }
-        })
-
-        this.logger.info(`🛡️ GIGA-CHAD: Popup blocking set up for tab - ${tabInfo.id}`)
-    }
-
-    /**
-     * 탭 활성화 (switchTab의 별칭)
-     */
-    async activateTab(tabId: string): Promise<void> {
-        return this.switchTab(tabId)
-    }
-
-    /**
-     * 탭 전환
+     * GIGA-CHAD: 탭 전환
      */
     async switchTab(tabId: string): Promise<void> {
-        if (!this.mainWindow) {
-            throw new Error('Main window not set')
+        if (!this.layeredWindow) {
+            throw new Error('LayeredWindow not set')
         }
 
-        let browserView = this.browserViews.get(tabId)
         const tabInfo = this.tabs.get(tabId)
+        const webContentsView = this.webContentsViews.get(tabId)
 
-        if (!tabInfo) {
+        if (!tabInfo || !webContentsView) {
             throw new Error(`Tab not found: ${tabId}`)
         }
 
-        // GIGA-CHAD: 폐기된 탭이면 복구
-        if (!browserView && tabInfo.suspended) {
-            await this.restoreDiscardedTab(tabId)
-            browserView = this.browserViews.get(tabId)
-        }
-
-        if (!browserView) {
-            throw new Error(`BrowserView not available for tab: ${tabId}`)
-        }
-
-        // 이전 활성 탭 비활성화 및 최적화
+        // GIGA-CHAD: 기존 활성 탭 비활성화
         if (this.activeTabId) {
-            const prevTab = this.tabs.get(this.activeTabId)
-            if (prevTab) {
-                prevTab.isActive = false
-                this.updateTab(prevTab)
-                // GIGA-CHAD: 백그라운드 탭 최적화
-                await this.optimizeBackgroundTab(this.activeTabId)
+            const previousTab = this.tabs.get(this.activeTabId)
+            const previousView = this.webContentsViews.get(this.activeTabId)
+
+            if (previousTab && previousView) {
+                previousTab.isActive = false
+
+                // 기존 뷰를 BaseWindow에서 제거
+                this.layeredWindow.baseWindow.contentView.removeChildView(previousView)
             }
         }
 
-        // 새 탭 활성화 및 resume
+        // GIGA-CHAD: 새 탭 활성화
         tabInfo.isActive = true
         this.activeTabId = tabId
-        // GIGA-CHAD: 활성 탭 resume
-        await this.resumeTab(tabId)
-        this.updateTab(tabInfo)
 
-        // BrowserView 설정 (GIGA-CHAD: 전체 영역 사용)
-        this.mainWindow.setBrowserView(browserView)
+        // GIGA-CHAD: 새 뷰를 BaseWindow에 추가 (browserView와 uiView 사이에)
+        this.layeredWindow.baseWindow.contentView.removeChildView(this.layeredWindow.browserView)
+        this.layeredWindow.baseWindow.contentView.addChildView(webContentsView) // 새 탭의 뷰
+        this.layeredWindow.baseWindow.contentView.addChildView(this.layeredWindow.uiView) // UI는 항상 최상위
 
-        // GIGA-CHAD: 연결 상태 확인
-        const currentBrowserView = this.mainWindow.getBrowserView()
-        const isAttached = currentBrowserView === browserView
-
-        this.logger.info(`🔗 GIGA-CHAD: BrowserView connection status`, {
-            tabId,
-            isAttached,
-            browserViewId: browserView.webContents.id,
-            currentViewId: currentBrowserView?.webContents?.id || 'none'
-        })
-
-        // GIGA-CHAD: WindowManager로 레이아웃 계산 통합
-        const { WindowManager } = await import('../core/window')
-        const bounds = WindowManager.calculateBrowserViewBounds(this.mainWindow)
-        browserView.setBounds(bounds)
-
-        // GIGA-CHAD: bounds 설정 후 확인
-        const actualBounds = browserView.getBounds()
-        this.logger.info(`📏 GIGA-CHAD: BrowserView bounds set`, {
-            calculated: bounds,
-            actual: actualBounds,
-            match: JSON.stringify(bounds) === JSON.stringify(actualBounds)
+        // GIGA-CHAD: 뷰 크기를 전체 화면으로 설정
+        const bounds = this.layeredWindow.baseWindow.getBounds()
+        webContentsView.setBounds({
+            x: 0,
+            y: 0,
+            width: bounds.width,
+            height: bounds.height
         })
 
         this.logger.info(`🔄 GIGA-CHAD: Switched to tab - ${tabId}`)
     }
 
     /**
-     * 탭 닫기
+     * GIGA-CHAD: 탭 닫기
      */
     async closeTab(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
         const tabInfo = this.tabs.get(tabId)
+        const webContentsView = this.webContentsViews.get(tabId)
 
-        if (!browserView || !tabInfo) {
-            throw new Error(`Tab not found: ${tabId}`)
+        if (!tabInfo || !webContentsView) {
+            this.logger.warn(`⚠️ GIGA-CHAD: Attempted to close non-existent tab: ${tabId}`)
+            return
         }
 
-        // BrowserView 정리
-        if (this.mainWindow && this.activeTabId === tabId) {
-            this.mainWindow.setBrowserView(null)
-        }
+        // GIGA-CHAD: 컨텍스트 메뉴 해제 (TODO: ContextMenuService 메서드 확인 필요)
+        // ContextMenuService.unregisterContextMenu(webContentsView.webContents)
 
-        // GIGA-CHAD: 컨텍스트 메뉴 해제
-        ContextMenuService.getInstance().unregisterContextMenu(browserView.webContents)
-
-        // 메모리 정리 (GIGA-CHAD: 메모리 최적화)
-        browserView.webContents.close()
-
-        // 맵에서 제거
-        this.tabs.delete(tabId)
-        this.browserViews.delete(tabId)
-
-        // 활성 탭이 닫혔으면 초기화
+        // GIGA-CHAD: 활성 탭이었다면 다른 탭으로 전환
         if (this.activeTabId === tabId) {
-            this.activeTabId = null
+            const remainingTabs = Array.from(this.tabs.values()).filter(tab => tab.id !== tabId)
+            if (remainingTabs.length > 0) {
+                const nextTab = remainingTabs[remainingTabs.length - 1]
+                await this.switchTab(nextTab.id)
+            } else {
+                this.activeTabId = null
+                // 모든 탭이 닫혔으면 기본 browserView 표시
+                if (this.layeredWindow) {
+                    this.layeredWindow.baseWindow.contentView.removeChildView(webContentsView)
+                    this.layeredWindow.baseWindow.contentView.addChildView(this.layeredWindow.browserView)
+                    this.layeredWindow.baseWindow.contentView.addChildView(this.layeredWindow.uiView)
+                }
+            }
+        } else {
+            // 비활성 탭이면 그냥 제거
+            if (this.layeredWindow) {
+                this.layeredWindow.baseWindow.contentView.removeChildView(webContentsView)
+            }
         }
+
+        // GIGA-CHAD: WebContents 정리
+        try {
+            if (!webContentsView.webContents.isDestroyed()) {
+                webContentsView.webContents.close()
+            }
+        } catch (error) {
+            this.logger.error('Error closing WebContents:', error)
+        }
+
+        // GIGA-CHAD: 맵에서 제거
+        this.tabs.delete(tabId)
+        this.webContentsViews.delete(tabId)
 
         this.logger.info(`❌ GIGA-CHAD: Tab closed - ${tabId}`)
     }
 
     /**
-     * 탭 네비게이션 (URL 업데이트)
-     */
-    async navigateTab(tabId: string, url: string): Promise<void> {
-        return this.updateTabUrl(tabId, url)
-    }
-
-    /**
-     * 탭 URL 업데이트
+     * GIGA-CHAD: 탭 URL 업데이트
      */
     async updateTabUrl(tabId: string, url: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
         const tabInfo = this.tabs.get(tabId)
+        const webContentsView = this.webContentsViews.get(tabId)
 
-        if (!browserView || !tabInfo) {
-            throw new Error(`Tab not found: ${tabId}`)
+        if (!tabInfo || !webContentsView) {
+            this.logger.warn(`⚠️ GIGA-CHAD: Attempted to update URL for non-existent tab: ${tabId}`)
+            return
         }
 
-        tabInfo.loading = true
-        this.updateTab(tabInfo)
+        // URL 업데이트 및 로드
+        tabInfo.url = url
+        await webContentsView.webContents.loadURL(url)
 
-        await browserView.webContents.loadURL(url)
+        this.logger.info(`🌐 GIGA-CHAD: Tab URL updated - ${tabId}: ${url}`)
     }
 
     /**
-     * 네비게이션 - 뒤로 가기
+     * GIGA-CHAD: WebContents 이벤트 핸들러 설정
      */
-    async goBack(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        if (!browserView) {
-            throw new Error(`Tab not found: ${tabId}`)
-        }
+    private setupWebContentsEvents(tabId: string, webContentsView: WebContentsView): void {
+        const webContents = webContentsView.webContents
+        const tabInfo = this.tabs.get(tabId)
+        if (!tabInfo) return
 
-        if (browserView.webContents.navigationHistory.canGoBack()) {
-            browserView.webContents.navigationHistory.goBack()
-        }
+        // 페이지 제목 변경
+        webContents.on('page-title-updated', (_, title) => {
+            tabInfo.title = title
+            this.logger.info(`📄 GIGA-CHAD: Tab title updated - ${tabId}: ${title}`)
+        })
+
+        // 네비게이션 완료
+        webContents.on('did-finish-load', () => {
+            tabInfo.loading = false
+            tabInfo.canGoBack = webContents.navigationHistory.canGoBack()
+            tabInfo.canGoForward = webContents.navigationHistory.canGoForward()
+            this.logger.info(`✅ GIGA-CHAD: Tab finished loading - ${tabId}`)
+        })
+
+        // 네비게이션 시작
+        webContents.on('did-start-loading', () => {
+            tabInfo.loading = true
+            this.logger.info(`⏳ GIGA-CHAD: Tab started loading - ${tabId}`)
+        })
+
+        // URL 변경
+        webContents.on('will-navigate', (_, navigationUrl) => {
+            tabInfo.url = navigationUrl
+            this.logger.info(`🧭 GIGA-CHAD: Tab navigating - ${tabId}: ${navigationUrl}`)
+        })
+
+        // 파비콘 업데이트
+        webContents.on('page-favicon-updated', (_, favicons) => {
+            if (favicons.length > 0) {
+                tabInfo.favicon = favicons[0]
+            }
+        })
     }
 
     /**
-     * 네비게이션 - 앞으로 가기
+     * GIGA-CHAD: 유니크한 탭 ID 생성
      */
-    async goForward(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        if (!browserView) {
-            throw new Error(`Tab not found: ${tabId}`)
-        }
-
-        if (browserView.webContents.navigationHistory.canGoForward()) {
-            browserView.webContents.navigationHistory.goForward()
-        }
-    }
-
-    /**
-     * 페이지 새로고침
-     */
-    async reload(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        if (!browserView) {
-            throw new Error(`Tab not found: ${tabId}`)
-        }
-
-        browserView.webContents.reload()
-    }
-
-    /**
-     * 탭 정보 가져오기
-     */
-    getTab(tabId: string): TabInfo | undefined {
-        return this.tabs.get(tabId)
-    }
-
-    /**
-     * 모든 탭 가져오기
-     */
-    getAllTabs(): TabInfo[] {
-        return Array.from(this.tabs.values())
+    private generateTabId(): string {
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(2, 15)
+        return `tab_${timestamp}_${random}`
     }
 
     /**
@@ -381,273 +272,64 @@ export class TabManager {
     }
 
     /**
-     * 탭 정보 업데이트 알림
+     * 모든 탭 정보 가져오기
      */
-    private updateTab(tabInfo: TabInfo): void {
-        // 렌더러 프로세스에 탭 업데이트 알림
-        if (this.mainWindow && this.mainWindow.webContents) {
-            this.mainWindow.webContents.send('tab:updated', tabInfo)
+    getAllTabs(): TabInfo[] {
+        return Array.from(this.tabs.values())
+    }
+
+    /**
+     * 특정 탭 정보 가져오기
+     */
+    getTab(tabId: string): TabInfo | undefined {
+        return this.tabs.get(tabId)
+    }
+
+    /**
+     * 탭의 WebContentsView 가져오기
+     */
+    getWebContentsView(tabId: string): WebContentsView | undefined {
+        return this.webContentsViews.get(tabId)
+    }
+
+    /**
+     * 활성 탭의 웹 네비게이션
+     */
+    async goBack(): Promise<void> {
+        if (!this.activeTabId) return
+
+        const webContentsView = this.webContentsViews.get(this.activeTabId)
+        if (webContentsView && webContentsView.webContents.navigationHistory.canGoBack()) {
+            webContentsView.webContents.goBack()
+        }
+    }
+
+    async goForward(): Promise<void> {
+        if (!this.activeTabId) return
+
+        const webContentsView = this.webContentsViews.get(this.activeTabId)
+        if (webContentsView && webContentsView.webContents.navigationHistory.canGoForward()) {
+            webContentsView.webContents.goForward()
+        }
+    }
+
+    async reload(): Promise<void> {
+        if (!this.activeTabId) return
+
+        const webContentsView = this.webContentsViews.get(this.activeTabId)
+        if (webContentsView) {
+            webContentsView.webContents.reload()
         }
     }
 
     /**
-     * 윈도우 크기 변경 시 BrowserView 크기 조정
-     */
-    updateBrowserViewBounds(): void {
-        if (!this.mainWindow || !this.activeTabId) return
-
-        const browserView = this.browserViews.get(this.activeTabId)
-        if (!browserView) return
-
-        const sidebarWidth = 280
-        const headerHeight = 48
-        const titleBarHeight = 28
-        const bounds = this.mainWindow.getBounds()
-
-        browserView.setBounds({
-            x: sidebarWidth,
-            y: headerHeight + titleBarHeight,
-            width: bounds.width - sidebarWidth,
-            height: bounds.height - headerHeight - titleBarHeight
-        })
-
-        this.logger.info(`BrowserView bounds updated - ${bounds.width - sidebarWidth}x${bounds.height - headerHeight - titleBarHeight}`)
-    }
-
-    /**
-     * 모든 탭 닫기
-     */
-    async closeAllTabs(): Promise<void> {
-        this.logger.info('Closing all tabs...')
-
-        for (const [tabId] of this.tabs) {
-            await this.closeTab(tabId)
-        }
-
-        this.logger.info('All tabs closed')
-    }
-
-    /**
-     * 탭 개수 가져오기
+     * 탭 카운트 메서드들 (레거시 호환성)
      */
     getTabCount(): number {
         return this.tabs.size
     }
 
-    /**
-     * 일시정지된 탭 개수 가져오기
-     */
     getSuspendedTabCount(): number {
         return Array.from(this.tabs.values()).filter(tab => tab.suspended).length
-    }
-
-    /**
-     * 모든 탭 정리 (앱 종료 시)
-     */
-    async cleanup(): Promise<void> {
-        this.logger.info('🧹 GIGA-CHAD: Cleaning up TabManager...')
-
-        for (const [tabId] of this.tabs) {
-            await this.closeTab(tabId)
-        }
-
-        this.tabs.clear()
-        this.browserViews.clear()
-        this.activeTabId = null
-        this.mainWindow = null
-
-        this.logger.info('✅ GIGA-CHAD: TabManager cleanup completed')
-    }
-
-    /**
-     * CDP를 사용한 백그라운드 탭 최적화 (GIGA-CHAD)
-     */
-    private async optimizeBackgroundTab(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        const tabInfo = this.tabs.get(tabId)
-
-        if (!browserView || !tabInfo || tabInfo.isActive) {
-            return
-        }
-
-        try {
-            const webContents = browserView.webContents
-
-            // 디버거 활성화
-            if (!webContents.debugger.isAttached()) {
-                webContents.debugger.attach('1.3')
-            }
-
-            // 라이프사이클 이벤트 활성화
-            await webContents.debugger.sendCommand('Page.setLifecycleEventsEnabled', { enabled: true })
-
-            // JavaScript 실행 일시 정지 (메모리 절약)
-            await webContents.debugger.sendCommand('Page.setWebLifecycleState', { state: 'frozen' })
-
-            // 미디어 일시 정지
-            await webContents.executeJavaScript(`
-                document.querySelectorAll('video,audio').forEach(media => {
-                    if (!media.paused) {
-                        media.pause()
-                    }
-                })
-            `)
-
-            tabInfo.suspended = true
-            this.updateTab(tabInfo)
-
-            this.logger.info(`🧊 GIGA-CHAD: Background tab optimized - ${tabId}`)
-        } catch (error) {
-            this.logger.error(`Failed to optimize background tab ${tabId}`, error)
-        }
-    }
-
-    /**
-     * 탭 활성화 시 최적화 해제 (GIGA-CHAD)
-     */
-    private async resumeTab(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        const tabInfo = this.tabs.get(tabId)
-
-        if (!browserView || !tabInfo) {
-            return
-        }
-
-        try {
-            const webContents = browserView.webContents
-
-            if (webContents.debugger.isAttached()) {
-                // 라이프사이클 상태 복원
-                await webContents.debugger.sendCommand('Page.setWebLifecycleState', { state: 'active' })
-
-                // 디버거 분리
-                webContents.debugger.detach()
-            }
-
-            tabInfo.suspended = false
-            this.updateTab(tabInfo)
-
-            this.logger.info(`🔥 GIGA-CHAD: Tab resumed - ${tabId}`)
-        } catch (error) {
-            this.logger.error(`Failed to resume tab ${tabId}`, error)
-        }
-    }
-
-    /**
-     * 모든 백그라운드 탭 최적화 실행
-     */
-    async optimizeAllBackgroundTabs(): Promise<void> {
-        const backgroundTabs = Array.from(this.tabs.entries())
-            .filter(([_, tab]) => !tab.isActive)
-
-        for (const [tabId] of backgroundTabs) {
-            await this.optimizeBackgroundTab(tabId)
-        }
-
-        this.logger.info(`🧊 GIGA-CHAD: Optimized ${backgroundTabs.length} background tabs`)
-    }
-
-    /**
-     * 탭 폐기 (메모리 완전 해제) - GIGA-CHAD
-     */
-    async discardTab(tabId: string): Promise<void> {
-        const browserView = this.browserViews.get(tabId)
-        const tabInfo = this.tabs.get(tabId)
-
-        if (!browserView || !tabInfo || tabInfo.isActive) {
-            return
-        }
-
-        try {
-            // BrowserView 제거 (메모리 해제 유도)
-            if (this.mainWindow) {
-                this.mainWindow.removeBrowserView(browserView)
-            }
-
-            // BrowserView 참조 제거 (GC가 처리)
-            this.browserViews.delete(tabId)
-
-            // 탭 정보 업데이트 (폐기 상태 표시)
-            tabInfo.suspended = true
-            tabInfo.title = '[폐기됨] ' + tabInfo.title.replace('[폐기됨] ', '')
-            this.updateTab(tabInfo)
-
-            this.logger.info(`🗑️ GIGA-CHAD: Tab discarded - ${tabId}`)
-        } catch (error) {
-            this.logger.error(`Failed to discard tab ${tabId}`, error)
-        }
-    }
-
-    /**
-     * 폐기된 탭 복구 - GIGA-CHAD
-     */
-    async restoreDiscardedTab(tabId: string): Promise<void> {
-        const tabInfo = this.tabs.get(tabId)
-
-        if (!tabInfo || !tabInfo.suspended || this.browserViews.has(tabId)) {
-            return
-        }
-
-        try {
-            if (!this.mainWindow) {
-                throw new Error('Main window not set')
-            }
-
-            // 새 BrowserView 생성
-            const browserView = new BrowserView({
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    backgroundThrottling: true,
-                    preload: __dirname + '/../../preload/preload.js',
-                    // GIGA-CHAD: 추가 메모리 최적화 옵션들
-                    webSecurity: true,
-                    allowRunningInsecureContent: false,
-                    experimentalFeatures: false,
-                    plugins: false,
-                    devTools: process.env.NODE_ENV === 'development',
-                    partition: 'persist:browser'
-                }
-            })
-
-            // 이벤트 리스너 재설정
-            this.setupBrowserViewEvents(browserView, tabInfo)
-
-            // GIGA-CHAD: 팝업 창 차단 재설정
-            this.setupPopupBlocking(browserView, tabInfo)
-
-            // 컨텍스트 메뉴 재등록
-            ContextMenuService.getInstance().registerContextMenu(browserView.webContents)
-
-            // BrowserView 저장
-            this.browserViews.set(tabId, browserView)
-
-            // 원래 URL로 다시 로드
-            const originalUrl = tabInfo.url
-            if (originalUrl && originalUrl !== 'about:blank') {
-                browserView.webContents.loadURL(originalUrl)
-            }
-
-            // 탭 정보 업데이트
-            tabInfo.suspended = false
-            tabInfo.title = tabInfo.title.replace('[폐기됨] ', '')
-            tabInfo.loading = true
-            this.updateTab(tabInfo)
-
-            this.logger.info(`🔄 GIGA-CHAD: Tab restored - ${tabId}`)
-        } catch (error) {
-            this.logger.error(`Failed to restore tab ${tabId}`, error)
-        }
-    }
-
-    /**
-     * GIGA-CHAD: 추가 Getter 메소드들
-     */
-    getBrowserView(tabId: string): BrowserView | undefined {
-        return this.browserViews.get(tabId)
-    }
-
-    getAllBrowserViews(): BrowserView[] {
-        return Array.from(this.browserViews.values())
     }
 }

@@ -18,6 +18,7 @@ interface SideBarProps {
     onSwitchTab: (tabId: string) => void
     isCollapsed: boolean
     onToggleCollapse: () => void
+    isVisible?: boolean // GIGA-CHAD: 자동 숨김을 위한 prop
 }
 
 interface TabGroupProps {
@@ -105,7 +106,8 @@ export const SideBar: React.FC<SideBarProps> = ({
     onCloseTab,
     onSwitchTab,
     isCollapsed,
-    onToggleCollapse
+    onToggleCollapse,
+    isVisible = true // GIGA-CHAD: 기본값은 표시
 }) => {
     const [activeSection, setActiveSection] = useState<'tabs' | 'bookmarks' | 'history'>('tabs')
 
@@ -124,7 +126,7 @@ export const SideBar: React.FC<SideBarProps> = ({
     const groupedTabs = groupTabs(tabs)
 
     return (
-        <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${!isVisible ? 'auto-hide' : ''}`}>
             {/* 사이드바 헤더 */}
             <div className="sidebar-header">
                 {!isCollapsed && (

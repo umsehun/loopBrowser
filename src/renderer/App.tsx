@@ -15,6 +15,10 @@ const App: React.FC = () => {
     const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
+    // GIGA-CHAD: Zen/Arc 스타일 자동 숨김 UI 상태
+    const [isUIVisible, setIsUIVisible] = useState(true)
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+
     // GIGA-CHAD: 앱 초기화
     useEffect(() => {
         const initializeApp = async () => {
@@ -83,6 +87,50 @@ const App: React.FC = () => {
         const interval = setInterval(collectMetrics, 5000)
         return () => clearInterval(interval)
     }, [tabs.length])
+
+    // GIGA-CHAD: Zen/Arc 스타일 자동 숨김 UI 로직
+    useEffect(() => {
+        let hideTimeout: NodeJS.Timeout
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const { clientX, clientY } = e
+            setMousePosition({ x: clientX, y: clientY })
+
+            // 마우스가 상단 60px나 왼쪽 80px 영역에 있으면 UI 표시
+            const shouldShowUI = clientY <= 60 || clientX <= 80
+
+            if (shouldShowUI) {
+                setIsUIVisible(true)
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout)
+                }
+            } else {
+                // 마우스가 영역을 벗어나면 2초 후 숨김
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout)
+                }
+                hideTimeout = setTimeout(() => {
+                    setIsUIVisible(false)
+                }, 2000)
+            }
+        }
+
+        const handleMouseLeave = () => {
+            // 마우스가 화면을 벗어나면 즉시 숨김
+            setIsUIVisible(false)
+        }
+
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseleave', handleMouseLeave)
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseleave', handleMouseLeave)
+            if (hideTimeout) {
+                clearTimeout(hideTimeout)
+            }
+        }
+    }, [])
 
     // GIGA-CHAD: 새 탭 생성
     const handleCreateTab = async () => {
@@ -213,7 +261,46 @@ const App: React.FC = () => {
 
     return (
         <div className="app">
-            {/* GIGA-CHAD: 상단 HeaderBar */}
+            {/* GIGA-CHAD: 디버그 표시 - 명확한 UI 레이어 확인용 */}
+            <div className="debug-banner" style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '50px',
+                backgroundColor: '#00FF00',
+                color: '#000000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                zIndex: 10000,
+                border: '3px solid #FF0000'
+            }}>
+                🦾 GIGA-CHAD UI LAYER IS WORKING! React App Loaded! 🦾
+            </div>
+
+            {/* GIGA-CHAD: Zen/Arc 스타일 - 전체 화면 웹 콘텐츠 영역 */}
+            <div className="full-screen-web-area">
+                {/* 탭이 없을 때만 시작 화면 표시 */}
+                {tabs.length === 0 ? (
+                    <div className="start-screen">
+                        <h1>Sao에 오신 것을 환영합니다!</h1>
+                        <p>새 탭을 만들어 브라우징을 시작하세요.</p>
+                        <button onClick={handleCreateTab} className="start-button">
+                            새 탭 만들기
+                        </button>
+                    </div>
+                ) : (
+                    // BrowserView가 여기에 전체 화면으로 표시됨
+                    <div className="web-content-overlay">
+                        {/* BrowserView가 이 영역에 전체 화면으로 오버레이됩니다 */}
+                    </div>
+                )}
+            </div>
+
+            {/* GIGA-CHAD: 오버레이 UI 컴포넌트들 - 자동 숨김 적용 */}
             <HeaderBar
                 activeTab={activeTab}
                 onNavigateBack={handleNavigateBack}
@@ -223,40 +310,19 @@ const App: React.FC = () => {
                 onSearch={handleSearch}
                 canGoBack={activeTab?.canGoBack || false}
                 canGoForward={activeTab?.canGoForward || false}
+                isVisible={isUIVisible}
             />
 
-            {/* GIGA-CHAD: 메인 레이아웃 */}
-            <div className="main-layout">
-                {/* 왼쪽 SideBar */}
-                <SideBar
-                    tabs={tabs}
-                    activeTabId={activeTabId}
-                    onCreateTab={handleCreateTab}
-                    onCloseTab={handleCloseTab}
-                    onSwitchTab={handleSwitchTab}
-                    isCollapsed={sidebarCollapsed}
-                    onToggleCollapse={handleToggleSidebar}
-                />
-
-                {/* 오른쪽 브라우저 뷰 영역 - BrowserView가 이 영역에 표시됨 */}
-                <div className="browser-view-container">
-                    {/* 탭이 없을 때만 시작 화면 표시 */}
-                    {tabs.length === 0 ? (
-                        <div className="start-screen">
-                            <h1>Sao에 오신 것을 환영합니다!</h1>
-                            <p>새 탭을 만들어 브라우징을 시작하세요.</p>
-                            <button onClick={handleCreateTab} className="start-button">
-                                새 탭 만들기
-                            </button>
-                        </div>
-                    ) : (
-                        // 탭이 있을 때는 투명한 영역 - BrowserView가 여기에 표시됨
-                        <div className="web-content-area">
-                            {/* BrowserView가 이 영역에 정확히 오버레이됩니다 */}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <SideBar
+                tabs={tabs}
+                activeTabId={activeTabId}
+                onCreateTab={handleCreateTab}
+                onCloseTab={handleCloseTab}
+                onSwitchTab={handleSwitchTab}
+                isCollapsed={sidebarCollapsed}
+                onToggleCollapse={handleToggleSidebar}
+                isVisible={isUIVisible}
+            />
 
             {/* GIGA-CHAD: 성능 모니터 */}
             {performanceMetrics && (

@@ -180,7 +180,7 @@ export class ContextMenuService {
         try {
             const tabManager = TabManager.getInstance()
             const newTab = await tabManager.createTab(url)
-            await tabManager.activateTab(newTab.id)
+            await tabManager.switchTab(newTab.id)
 
             ContextMenuService.logger.info(`Opened link in new tab: ${url}`)
         } catch (error) {
@@ -205,7 +205,7 @@ export class ContextMenuService {
             const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(text)}`
             const tabManager = TabManager.getInstance()
             const newTab = await tabManager.createTab(searchUrl)
-            await tabManager.activateTab(newTab.id)
+            await tabManager.switchTab(newTab.id)
 
             ContextMenuService.logger.info(`Searching for: ${text}`)
         } catch (error) {

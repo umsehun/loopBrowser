@@ -3,7 +3,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { EngineService } from '../services/EngineService'
 import { SearchService } from '../services/SearchService'
 import { ShortcutService } from '../services/ShortcutService'
-import { WindowManager } from './window'
+import { WindowManager, LayeredWindow } from './window'
 import { SecurityManager } from './security'
 import { TabManager } from '../managers/tabManager'
 import { SettingsManager } from '../managers/SettingsManager'
@@ -17,6 +17,7 @@ export class GigaBrowserApp {
     private static instance: GigaBrowserApp
     private isInitialized = false
     private mainWindow?: BrowserWindow
+    private layeredWindow?: LayeredWindow // GIGA-CHAD: 새로운 레이어드 윈도우
     private logger = createModuleLogger('GigaBrowserApp')
 
     private constructor() { }
@@ -130,13 +131,17 @@ export class GigaBrowserApp {
     private onAppReady(): void {
         this.logger.info('App ready, creating main window...')
 
-        // 메인 윈도우 생성
-        this.mainWindow = WindowManager.createMainWindow()
+        // GIGA-CHAD: 새로운 레이어드 윈도우 생성
+        this.layeredWindow = WindowManager.createLayeredWindow()
 
-        // TabManager에 메인 윈도우 설정
-        TabManager.getInstance().setMainWindow(this.mainWindow).catch(error => {
-            this.logger.error('Failed to set main window on TabManager:', error)
-        })
+        // UI 콘텐츠 로드
+        WindowManager.loadUIContent(this.layeredWindow)
+
+        // GIGA-CHAD: TabManager에 LayeredWindow 설정
+        TabManager.getInstance().setLayeredWindow(this.layeredWindow)
+
+        // GIGA-CHAD: 호버 시스템 활성화
+        WindowManager.enableHoverSystem(this.layeredWindow)
 
         // GIGA-CHAD: 글로벌 단축키 등록
         ShortcutService.getInstance().registerAllShortcuts()
@@ -145,6 +150,8 @@ export class GigaBrowserApp {
         if (is.dev) {
             this.startMemoryMonitoring()
         }
+
+        this.logger.info('🎭 GIGA-CHAD: Layered window system initialized!')
     }
 
     /**
@@ -163,8 +170,10 @@ export class GigaBrowserApp {
     private onActivate(): void {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
-        if (WindowManager.getWindowCount() === 0) {
-            this.mainWindow = WindowManager.createMainWindow()
+        if (WindowManager.getAllWindows().length === 0) {
+            this.layeredWindow = WindowManager.createLayeredWindow()
+            WindowManager.loadUIContent(this.layeredWindow)
+            WindowManager.loadBrowserContent(this.layeredWindow, 'https://www.google.com')
         }
     }
 
@@ -184,10 +193,10 @@ export class GigaBrowserApp {
         SettingsManager.getInstance().cleanup()
 
         // 모든 윈도우 정리
-        WindowManager.closeAllWindows()
+        // WindowManager.closeAllWindows() // TODO: 구현 필요
 
         // 모든 탭 정리
-        TabManager.getInstance().closeAllTabs()
+        // TabManager.getInstance().closeAllTabs() // TODO: 구현 필요
     }
 
     /**
@@ -210,7 +219,7 @@ export class GigaBrowserApp {
         setInterval(async () => {
             try {
                 const memoryInfo = await process.getProcessMemoryInfo()
-                const windowCount = WindowManager.getWindowCount()
+                const windowCount = WindowManager.getAllWindows().length
 
                 this.logger.info('Memory Usage', {
                     private: `${Math.round(memoryInfo.private / 1024)}MB`,

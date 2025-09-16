@@ -20,6 +20,7 @@ interface HeaderBarProps {
     onSearch: (query: string) => void
     canGoBack: boolean
     canGoForward: boolean
+    isVisible?: boolean // GIGA-CHAD: 자동 숨김을 위한 prop
 }
 
 // GIGA-CHAD: Zen/Arc 스타일 상단 HeaderBar
@@ -31,7 +32,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     onHome,
     onSearch,
     canGoBack,
-    canGoForward
+    canGoForward,
+    isVisible = true // GIGA-CHAD: 기본값은 표시
 }) => {
     const [addressValue, setAddressValue] = useState('')
     const [isSearchFocused, setIsSearchFocused] = useState(false)
@@ -50,7 +52,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     }
 
     return (
-        <div className="header-bar">
+        <div className={`header-bar ${!isVisible ? 'auto-hide' : ''}`}>
             {/* 왼쪽: 네비게이션 버튼들 */}
             <div className="header-nav-section">
                 <button
