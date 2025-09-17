@@ -1,6 +1,7 @@
 import { WebContentsView, ipcMain } from 'electron'
 import { createLogger } from '../../../shared/logger'
 import { IOptimizationService } from '../../../shared/types'
+import { cspManager } from '../../../shared/csp'
 
 const logger = createLogger('WebContentsSecurityService')
 
@@ -27,7 +28,6 @@ export interface SecurityEvent {
  * - 보안 정책 관리
  * - 권한 요청 처리
  * - 도메인 화이트리스트/블랙리스트
- * - CSP 헤더 관리
  * - 인증서 검증
  */
 export class WebContentsSecurityService implements IOptimizationService {
@@ -387,16 +387,9 @@ export class WebContentsSecurityService implements IOptimizationService {
         }
     }
 
-    // CSP 헤더 설정
-    setContentSecurityPolicy(webView: WebContentsView, csp: string): void {
-        webView.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-            if (details.responseHeaders) {
-                details.responseHeaders['Content-Security-Policy'] = [csp]
-            }
-            callback({ responseHeaders: details.responseHeaders })
-        })
-
-        logger.info('CSP policy set', { viewId: this.getViewId(webView), csp })
+    // CSP 헤더 설정 (cspManager 위임)
+    setContentSecurityPolicy(webView: WebContentsView, csp?: string): void {
+        cspManager.setContentSecurityPolicy(webView, csp)
     }
 
     // 보안 상태 검증

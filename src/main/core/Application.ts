@@ -16,7 +16,7 @@ export class Application {
             return
         }
 
-        logger.info('Initializing Giga Browser...')
+        logger.info('Initializing SEO Browser...')
 
         // 앱 준비 대기
         await app.whenReady()

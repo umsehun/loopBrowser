@@ -154,6 +154,25 @@ export interface ServiceEvent {
     timestamp: Date;
 }
 
+// ==================== 보안 관련 타입 ====================
+export interface SecurityPolicy {
+    allowedDomains?: string[]
+    blockedDomains?: string[]
+    allowPopups?: boolean
+    allowDevTools?: boolean
+    allowFileAccess?: boolean
+    maxRedirects?: number
+    enableCSP?: boolean
+    strictSSL?: boolean
+}
+
+export interface SecurityEvent {
+    type: 'permission-request' | 'certificate-error' | 'login-request' | 'blocked-request'
+    url: string
+    details: any
+    timestamp: number
+}
+
 // ==================== 상수 정의 ====================
 export const PERFORMANCE_THRESHOLDS = {
     SLOW_REQUEST_MS: 2000,
