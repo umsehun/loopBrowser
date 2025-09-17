@@ -1,7 +1,8 @@
 {
-  "name": "browser",
+  "name": "seo",
+  "productName": "SEO Browser",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ultra-fast SEO-optimized browser with GPU acceleration and V8 performance tuning",
   "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
