@@ -1,4 +1,4 @@
-import { BaseWindow, WebContentsView } from 'electron'
+import { BaseWindow, BrowserWindow, WebContentsView } from 'electron'
 import { createLogger } from '../../shared/logger'
 
 const logger = createLogger('ResizeHandler')
@@ -6,12 +6,16 @@ const logger = createLogger('ResizeHandler')
 /**
  * 리사이징 핸들러 - EXA 연구 기반 동적 크기 조정
  * SRP: 창 크기 변경 이벤트 처리만 담당
+ * BaseWindow와 BrowserWindow 모두 지원
  */
 export class ResizeHandler {
-    private resizeListeners = new Map<BaseWindow, () => void>()
+    private resizeListeners = new Map<BaseWindow | BrowserWindow, () => void>()
 
-    setupAutoResize(window: BaseWindow, webView: WebContentsView, headerHeight = 0): void {
-        logger.info('Setting up auto-resize for WebContentsView')
+    setupAutoResize(window: BaseWindow | BrowserWindow, webView: WebContentsView, headerHeight = 0): void {
+        logger.info('Setting up auto-resize for WebContentsView', {
+            windowType: window instanceof BrowserWindow ? 'BrowserWindow' : 'BaseWindow',
+            headerHeight
+        })
 
         const resizeCallback = () => {
             if (window.isDestroyed() || webView.webContents.isDestroyed()) {
@@ -47,16 +51,32 @@ export class ResizeHandler {
         })
     }
 
-    private cleanup(window: BaseWindow): void {
+    private cleanup(window: BaseWindow | BrowserWindow): void {
         this.resizeListeners.delete(window)
-        logger.info('Resize handler cleaned up')
+        logger.info('Resize handler cleaned up', {
+            windowType: window instanceof BrowserWindow ? 'BrowserWindow' : 'BaseWindow'
+        })
     }
 
     // 수동 리사이즈 (필요시)
-    manualResize(window: BaseWindow, webView: WebContentsView, headerHeight = 0): void {
+    manualResize(window: BaseWindow | BrowserWindow, webView: WebContentsView, headerHeight = 0): void {
         const callback = this.resizeListeners.get(window)
         if (callback) {
             callback()
+            logger.debug('Manual resize triggered', { headerHeight })
+        } else {
+            logger.warn('No resize callback found for window')
         }
+    }
+
+    // 모든 리사이즈 핸들러 정리
+    cleanupAll(): void {
+        logger.info('Cleaning up all resize handlers', { count: this.resizeListeners.size })
+        this.resizeListeners.clear()
+    }
+
+    // 현재 활성 핸들러 수
+    getActiveHandlerCount(): number {
+        return this.resizeListeners.size
     }
 }
