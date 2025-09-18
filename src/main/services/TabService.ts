@@ -375,6 +375,33 @@ export class TabService {
       logger.error('Failed to update User-Agent for tabs', { error, userAgent })
     }
   }
+
+  // 활성 탭 숨기기
+  hideActiveTab(): void {
+    const activeTab = this.getActiveTab()
+    if (activeTab?.view && this.mainWindow) {
+      try {
+        this.mainWindow.contentView.removeChildView(activeTab.view)
+        logger.debug('Active tab hidden')
+      } catch (error) {
+        logger.error('Failed to hide active tab', { error })
+      }
+    }
+  }
+
+  // 활성 탭 보이기
+  showActiveTab(): void {
+    const activeTab = this.getActiveTab()
+    if (activeTab?.view && this.mainWindow) {
+      try {
+        this.mainWindow.contentView.addChildView(activeTab.view)
+        this.resizeActiveTab() // 보이기 후 크기 조정
+        logger.debug('Active tab shown')
+      } catch (error) {
+        logger.error('Failed to show active tab', { error })
+      }
+    }
+  }
 }
 
 // 싱글톤 인스턴스 내보내기

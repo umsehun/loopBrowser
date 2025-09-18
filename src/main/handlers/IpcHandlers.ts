@@ -260,8 +260,8 @@ export class IpcHandlers {
                     const mainWindow = windowManager.getMainWindow()
                     if (mainWindow) {
                         if (url === 'about:preferences') {
-                            // hide web contents view so renderer preferences page is visible
-                            windowManager.hideWebContentsView()
+                            // hide active tab view so renderer preferences page is visible
+                            tabService.hideActiveTab()
                             mainWindow.webContents.send('show-preferences')
                         }
                         // other about: pages can be added here
@@ -284,8 +284,8 @@ export class IpcHandlers {
                     }
 
                     activeTab.view.webContents.loadURL(formattedUrl)
-                    // Ensure WebContentsView is visible when navigating normal pages
-                    windowManager.showWebContentsView()
+                    // Ensure active tab is visible when navigating normal pages
+                    tabService.showActiveTab()
                     logger.info('Navigation requested via IPC', { originalUrl: url, formattedUrl })
                 } else {
                     logger.warn('No active tab for navigation', { url })
