@@ -216,6 +216,10 @@ const api = {
   onSettingsChanged: (callback) => {
     electron.ipcRenderer.on("settings-changed", (_, settings) => callback(settings));
   },
+  // show-preferences 이벤트 리스너
+  onShowPreferences: (callback) => {
+    electron.ipcRenderer.on("show-preferences", () => callback());
+  },
   // 설정 리스너 제거
   removeSettingsListener: () => {
     electron.ipcRenderer.removeAllListeners("settings-changed");

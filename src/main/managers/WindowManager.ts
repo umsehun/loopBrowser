@@ -1,4 +1,4 @@
-import { BrowserWindow, WebContentsView, screen } from 'electron'
+import { BrowserWindow, WebContentsView, screen, ipcMain } from 'electron'
 import { logger } from '../../shared/logger/index'
 import { devToolsService } from '../services/DevToolsService'
 import { tabService } from '../services/TabService'
@@ -71,6 +71,15 @@ export class WindowManager {
             devToolsService.setMainWindow(this.mainWindow)
             tabService.setMainWindow(this.mainWindow)
 
+            // WebContentsView 생성 및 초기 설정
+            this.webContentsView = new WebContentsView({
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            })
+            this.mainWindow.contentView.addChildView(this.webContentsView)
+
             // 윈도우 이벤트 설정
             this.setupWindowEvents()
 
@@ -84,6 +93,15 @@ export class WindowManager {
             if (this.mainWindow) {
                 securityManager.applyCSP(this.mainWindow.webContents)
             }
+
+            // IPC listener: renderer reports layout (header/sidebar sizes)
+            ipcMain.on('update-layout', (_event, dims: { headerHeight: number; sidebarWidth: number }) => {
+                try {
+                    this.updateWebContentsViewBounds(dims.headerHeight, dims.sidebarWidth)
+                } catch (err) {
+                    logger.error('Failed to update WebContentsView bounds from IPC', { err })
+                }
+            })
 
             logger.info('Main window created successfully', {
                 width: windowWidth,
@@ -127,6 +145,8 @@ export class WindowManager {
         this.mainWindow.on('resize', () => {
             logger.debug('Window resized')
             tabService.resizeActiveTab()
+            // 재계산: 기본값 사용하면 header 60, sidebar 250
+            this.updateWebContentsViewBounds()
         })
 
         // 윈도우 포커스
@@ -162,6 +182,16 @@ export class WindowManager {
         this.mainWindow.webContents.on('responsive', () => {
             logger.info('WebContents became responsive again')
         })
+
+        // 로드 이벤트 로깅 (WebContentsView)
+        if (this.webContentsView) {
+            this.webContentsView.webContents.on('did-finish-load', () => {
+                logger.info('WebContentsView finished load')
+            })
+            this.webContentsView.webContents.on('did-fail-load', (_event: any, errorCode: any, errorDescription: any, validatedURL: any) => {
+                logger.error('WebContentsView failed to load', { errorCode, errorDescription, validatedURL })
+            })
+        }
     }
 
     // UI 로드
@@ -176,10 +206,35 @@ export class WindowManager {
                 await this.mainWindow.loadFile(require('path').join(__dirname, '../renderer/index.html'))
                 logger.info('Loaded production UI')
             }
+
+            // 초기 WebContentsView 컨텐츠 로드: 기본 탭 URL로 설정
+            const activeTab = tabService.getActiveTab()
+            const initialUrl = activeTab?.url || 'https://www.google.com'
+            if (this.webContentsView) {
+                this.webContentsView.webContents.loadURL(initialUrl).catch((err: any) => {
+                    logger.error('Failed to load initial URL into WebContentsView', { err, url: initialUrl })
+                })
+            }
         } catch (error) {
             logger.error('Failed to load UI', { error })
             throw error
         }
+    }
+
+    // WebContentsView bounds 업데이트 helper
+    private updateWebContentsViewBounds(headerHeight = 60, sidebarWidth = 250): void {
+        if (!this.mainWindow || !this.webContentsView) return
+
+        const contentBounds = this.mainWindow.getContentBounds()
+
+        // 10px 테두리(왼쪽/오른쪽), 상단 headerHeight, 하단 10px
+        const left = 10 + sidebarWidth
+        const top = 10 + headerHeight
+        const width = Math.max(0, contentBounds.width - left - 10)
+        const height = Math.max(0, contentBounds.height - top - 10)
+
+        this.webContentsView.setBounds({ x: left, y: top, width, height })
+        logger.debug('WebContentsView bounds updated', { x: left, y: top, width, height })
     }
 
     // 기본 탭 생성
@@ -203,6 +258,34 @@ export class WindowManager {
     // 메인 윈도우 가져오기
     getMainWindow(): BrowserWindow | null {
         return this.mainWindow
+    }
+
+    // WebContentsView 가져오기
+    getWebContentsView(): WebContentsView | null {
+        return this.webContentsView
+    }
+
+    // 숨기기/보이기 유틸
+    hideWebContentsView(): void {
+        if (!this.webContentsView || !this.mainWindow) return
+        try {
+            this.mainWindow.contentView.removeChildView(this.webContentsView)
+            logger.debug('WebContentsView hidden')
+        } catch (error) {
+            logger.error('Failed to hide WebContentsView', { error })
+        }
+    }
+
+    showWebContentsView(): void {
+        if (!this.webContentsView || !this.mainWindow) return
+        try {
+            this.mainWindow.contentView.addChildView(this.webContentsView)
+            // restore bounds
+            this.updateWebContentsViewBounds()
+            logger.debug('WebContentsView shown')
+        } catch (error) {
+            logger.error('Failed to show WebContentsView', { error })
+        }
     }
 
     // 윈도우 표시 여부 확인
@@ -309,6 +392,12 @@ export class WindowManager {
     cleanup(): void {
         try {
             if (this.mainWindow) {
+                // WebContentsView 정리
+                if (this.webContentsView) {
+                    this.webContentsView.webContents.close()
+                    this.webContentsView = null
+                }
+
                 // 서비스 정리
                 devToolsService.unregisterShortcuts()
                 tabService.closeAllTabs()

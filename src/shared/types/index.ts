@@ -66,6 +66,9 @@ export interface ElectronAPI {
     // 설정 변경 리스너 추가
     onSettingsChanged: (callback: (settings: any) => void) => void
 
+    // show preferences event listener
+    onShowPreferences: (callback: () => void) => void
+
     // 설정 리스너 제거
     removeSettingsListener: () => void
 

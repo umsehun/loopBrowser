@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Frame from './components/UI/Frame';
 import Header from './components/UI/Header';
 import SideBar from './components/UI/SideBar';
 import MainContent from './components/UI/MainContent';
@@ -54,7 +55,7 @@ const App: React.FC = () => {
         };
     }, [isSidebarOpen]);
 
-    // 설정 변경 실시간 동기화
+    // 설정 변경 실시간 동기화 
     useEffect(() => {
         if (window.electronAPI) {
             // 설정 변경 리스너
@@ -143,53 +144,64 @@ const App: React.FC = () => {
         setCurrentUrl('about:preferences');
     };
 
-    return (
-        <div className="h-screen flex flex-col bg-gray-900 text-white">
-            {/* 헤더 컴포넌트 */}
-            <Header
-                ref={headerRef}
-                isVisible={isHeaderVisible}
-                currentUrl={currentUrl}
-                onUrlChange={setCurrentUrl}
-                onUrlSubmit={handleUrlSubmit}
-                onSidebarToggle={handleSidebarToggle}
-                onMemoryMonitorToggle={handleMemoryMonitorToggle}
-                onCapturePage={handleCapturePage}
-                onOpenPreferences={handleOpenPreferences}
-            />
+    // Listen for show-preferences event from main
+    useEffect(() => {
+        if (window.electronAPI && window.electronAPI.onShowPreferences) {
+            window.electronAPI.onShowPreferences(() => {
+                setCurrentUrl('about:preferences')
+            })
+        }
+    }, [])
 
-            {/* 메인 콘텐츠 영역 */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* 사이드바 컴포넌트 */}
-                <SideBar
-                    ref={sidebarRef}
-                    isOpen={isSidebarOpen}
+    return (
+        <Frame>
+            <div className="h-full flex flex-col">
+                {/* 헤더 컴포넌트 */}
+                <Header
+                    ref={headerRef}
+                    isVisible={isHeaderVisible}
                     currentUrl={currentUrl}
                     onUrlChange={setCurrentUrl}
-                    onNavigate={(url) => {
-                        if (window.electronAPI) {
-                            window.electronAPI.navigateTo(url);
-                        }
-                    }}
-                    onToggle={handleSidebarToggle}
+                    onUrlSubmit={handleUrlSubmit}
+                    onSidebarToggle={handleSidebarToggle}
+                    onMemoryMonitorToggle={handleMemoryMonitorToggle}
+                    onCapturePage={handleCapturePage}
+                    onOpenPreferences={handleOpenPreferences}
                 />
 
-                {/* 메인 콘텐츠 컴포넌트 */}
-                <MainContent
-                    isAboutUrl={isAboutUrl}
-                    isPreferencesPage={isPreferencesPage}
-                    currentUrl={currentUrl}
-                    layoutDimensions={layoutDimensions}
+                {/* 메인 콘텐츠 영역 */}
+                <div className="flex-1 flex overflow-hidden">
+                    {/* 사이드바 컴포넌트 */}
+                    <SideBar
+                        ref={sidebarRef}
+                        isOpen={isSidebarOpen}
+                        currentUrl={currentUrl}
+                        onUrlChange={setCurrentUrl}
+                        onNavigate={(url) => {
+                            if (window.electronAPI) {
+                                window.electronAPI.navigateTo(url);
+                            }
+                        }}
+                        onToggle={handleSidebarToggle}
+                    />
+
+                    {/* 메인 콘텐츠 컴포넌트 */}
+                    <MainContent
+                        isAboutUrl={isAboutUrl}
+                        isPreferencesPage={isPreferencesPage}
+                        currentUrl={currentUrl}
+                        layoutDimensions={layoutDimensions}
+                    />
+                </div>
+
+                {/* 메모리 모니터링 컴포넌트 */}
+                <MemoryMonitor
+                    isOpen={isMemoryMonitorOpen}
+                    memoryStats={memoryStats}
+                    onClose={() => setIsMemoryMonitorOpen(false)}
                 />
             </div>
-
-            {/* 메모리 모니터링 컴포넌트 */}
-            <MemoryMonitor
-                isOpen={isMemoryMonitorOpen}
-                memoryStats={memoryStats}
-                onClose={() => setIsMemoryMonitorOpen(false)}
-            />
-        </div>
+        </Frame>
     );
 };
 

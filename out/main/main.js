@@ -869,6 +869,7 @@ const securityManager = SecurityManager.getInstance();
 class WindowManager {
   constructor() {
     this.mainWindow = null;
+    this.webContentsView = null;
     this.isWindowReady = false;
     mainLogger$1.info("WindowManager initialized");
   }
@@ -914,12 +915,26 @@ class WindowManager {
       mainLogger$1.info("User-Agent set from settings", { userAgent });
       devToolsService.setMainWindow(this.mainWindow);
       tabService.setMainWindow(this.mainWindow);
+      this.webContentsView = new electron.WebContentsView({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+      this.mainWindow.contentView.addChildView(this.webContentsView);
       this.setupWindowEvents();
       this.mainWindow.center();
       await this.loadUI();
       if (this.mainWindow) {
         securityManager.applyCSP(this.mainWindow.webContents);
       }
+      electron.ipcMain.on("update-layout", (_event, dims) => {
+        try {
+          this.updateWebContentsViewBounds(dims.headerHeight, dims.sidebarWidth);
+        } catch (err) {
+          mainLogger$1.error("Failed to update WebContentsView bounds from IPC", { err });
+        }
+      });
       mainLogger$1.info("Main window created successfully", {
         width: windowWidth,
         height: windowHeight
@@ -949,6 +964,7 @@ class WindowManager {
     this.mainWindow.on("resize", () => {
       mainLogger$1.debug("Window resized");
       tabService.resizeActiveTab();
+      this.updateWebContentsViewBounds();
     });
     this.mainWindow.on("focus", () => {
       mainLogger$1.debug("Window focused");
@@ -972,6 +988,14 @@ class WindowManager {
     this.mainWindow.webContents.on("responsive", () => {
       mainLogger$1.info("WebContents became responsive again");
     });
+    if (this.webContentsView) {
+      this.webContentsView.webContents.on("did-finish-load", () => {
+        mainLogger$1.info("WebContentsView finished load");
+      });
+      this.webContentsView.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+        mainLogger$1.error("WebContentsView failed to load", { errorCode, errorDescription, validatedURL });
+      });
+    }
   }
   // UI 로드
   async loadUI() {
@@ -984,10 +1008,28 @@ class WindowManager {
         await this.mainWindow.loadFile(require("path").join(__dirname, "../renderer/index.html"));
         mainLogger$1.info("Loaded production UI");
       }
+      const activeTab = tabService.getActiveTab();
+      const initialUrl = activeTab?.url || "https://www.google.com";
+      if (this.webContentsView) {
+        this.webContentsView.webContents.loadURL(initialUrl).catch((err) => {
+          mainLogger$1.error("Failed to load initial URL into WebContentsView", { err, url: initialUrl });
+        });
+      }
     } catch (error) {
       mainLogger$1.error("Failed to load UI", { error });
       throw error;
     }
+  }
+  // WebContentsView bounds 업데이트 helper
+  updateWebContentsViewBounds(headerHeight = 60, sidebarWidth = 250) {
+    if (!this.mainWindow || !this.webContentsView) return;
+    const contentBounds = this.mainWindow.getContentBounds();
+    const left = 10 + sidebarWidth;
+    const top = 10 + headerHeight;
+    const width = Math.max(0, contentBounds.width - left - 10);
+    const height = Math.max(0, contentBounds.height - top - 10);
+    this.webContentsView.setBounds({ x: left, y: top, width, height });
+    mainLogger$1.debug("WebContentsView bounds updated", { x: left, y: top, width, height });
   }
   // 기본 탭 생성
   createDefaultTab() {
@@ -1007,6 +1049,30 @@ class WindowManager {
   // 메인 윈도우 가져오기
   getMainWindow() {
     return this.mainWindow;
+  }
+  // WebContentsView 가져오기
+  getWebContentsView() {
+    return this.webContentsView;
+  }
+  // 숨기기/보이기 유틸
+  hideWebContentsView() {
+    if (!this.webContentsView || !this.mainWindow) return;
+    try {
+      this.mainWindow.contentView.removeChildView(this.webContentsView);
+      mainLogger$1.debug("WebContentsView hidden");
+    } catch (error) {
+      mainLogger$1.error("Failed to hide WebContentsView", { error });
+    }
+  }
+  showWebContentsView() {
+    if (!this.webContentsView || !this.mainWindow) return;
+    try {
+      this.mainWindow.contentView.addChildView(this.webContentsView);
+      this.updateWebContentsViewBounds();
+      mainLogger$1.debug("WebContentsView shown");
+    } catch (error) {
+      mainLogger$1.error("Failed to show WebContentsView", { error });
+    }
   }
   // 윈도우 표시 여부 확인
   isWindowVisible() {
@@ -1097,6 +1163,10 @@ class WindowManager {
   cleanup() {
     try {
       if (this.mainWindow) {
+        if (this.webContentsView) {
+          this.webContentsView.webContents.close();
+          this.webContentsView = null;
+        }
         devToolsService.unregisterShortcuts();
         tabService.closeAllTabs();
         this.mainWindow = null;
@@ -1314,6 +1384,16 @@ class IpcHandlers {
     electron.ipcMain.on("navigate-to", (event, url) => {
       try {
         const activeTab = tabService.getActiveTab();
+        if (url.startsWith("about:")) {
+          const mainWindow = windowManager.getMainWindow();
+          if (mainWindow) {
+            if (url === "about:preferences") {
+              windowManager.hideWebContentsView();
+              mainWindow.webContents.send("show-preferences");
+            }
+          }
+          return;
+        }
         if (activeTab && activeTab.view) {
           let formattedUrl = url;
           if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("file://")) {
@@ -1324,6 +1404,7 @@ class IpcHandlers {
             }
           }
           activeTab.view.webContents.loadURL(formattedUrl);
+          windowManager.showWebContentsView();
           mainLogger$1.info("Navigation requested via IPC", { originalUrl: url, formattedUrl });
         } else {
           mainLogger$1.warn("No active tab for navigation", { url });

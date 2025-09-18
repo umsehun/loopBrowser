@@ -11411,6 +11411,9 @@ function requireClient() {
   return client.exports;
 }
 var clientExports = requireClient();
+const Frame = ({ children }) => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-screen bg-gray-200 dark:bg-gray-800 p-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden border border-gray-300 dark:border-gray-700", children }) });
+};
 const Header = reactExports.forwardRef(({
   isVisible,
   currentUrl,
@@ -11832,82 +11835,67 @@ const PreferencesPage = () => {
       rendererLogger.error("Failed to change User-Agent preset:", { error });
     }
   };
-  const handleResetSettings = async () => {
-    if (confirm("모든 설정을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
-      try {
-        if (window.electronAPI) {
-          await window.electronAPI.resetSettings();
-          const ui = await window.electronAPI.getUISettings();
-          const browser = await window.electronAPI.getBrowserSettings();
-          setUISettings(ui);
-          setBrowserSettings(browser);
-        }
-      } catch (error) {
-        rendererLogger.error("Failed to reset settings:", { error });
+  const resetSettings = async () => {
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.resetSettings();
+        const ui = await window.electronAPI.getUISettings();
+        const browser = await window.electronAPI.getBrowserSettings();
+        setUISettings(ui);
+        setBrowserSettings(browser);
+        rendererLogger.info("All settings reset to defaults");
       }
+    } catch (error) {
+      rendererLogger.error("Failed to reset settings:", { error });
     }
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex items-center justify-center bg-gray-100", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-4", children: "⚙️" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-600", children: "설정 로딩 중..." })
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 dark:text-gray-400", children: "설정을 불러오는 중..." })
     ] }) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full bg-gray-50 overflow-y-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto p-6", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen bg-gray-50 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-8", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-3xl font-bold text-gray-900 mb-2", children: "설정" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Loop Browser의 설정을 관리하세요" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-3xl font-bold text-gray-900 dark:text-white", children: "설정" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-gray-600 dark:text-gray-400", children: "Loop Browser의 설정을 조정하세요." })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-lg shadow-sm mb-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 border-b border-gray-200", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-900", children: "사용자 인터페이스" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 mt-1", children: "브라우저 UI 관련 설정" })
-      ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white dark:bg-gray-800 shadow rounded-lg mb-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4 border-b border-gray-200 dark:border-gray-700", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-900 dark:text-white", children: "UI 설정" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 space-y-6", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center space-x-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: uiSettings?.showSidebar || false,
-                onChange: (e) => handleUISettingChange("showSidebar", e.target.checked),
-                className: "w-4 h-4 text-blue-600 rounded"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium text-gray-700", children: "사이드바 표시" })
-          ] }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center space-x-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: uiSettings?.showHeaderBar || false,
-                onChange: (e) => handleUISettingChange("showHeaderBar", e.target.checked),
-                className: "w-4 h-4 text-blue-600 rounded"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium text-gray-700", children: "헤더바 표시" })
-          ] }) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "테마" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "select",
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "사이드바 표시" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "브라우저 사이드바를 표시합니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
             {
-              value: uiSettings?.theme || "dark",
-              onChange: (e) => handleUISettingChange("theme", e.target.value),
-              className: "block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dark", children: "다크" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "light", children: "라이트" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "auto", children: "시스템 설정 따름" })
-              ]
+              type: "checkbox",
+              checked: uiSettings?.showSidebar || false,
+              onChange: (e) => handleUISettingChange("showSidebar", e.target.checked),
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "사이드바 자동 숨김" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "마우스가 벗어나면 사이드바를 자동으로 숨깁니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: uiSettings?.sidebarAutoHide || false,
+              onChange: (e) => handleUISettingChange("sidebarAutoHide", e.target.checked),
+              disabled: !uiSettings?.showSidebar,
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
             }
           )
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: [
             "사이드바 너비: ",
             uiSettings?.sidebarWidth || 250,
             "px"
@@ -11917,120 +11905,187 @@ const PreferencesPage = () => {
             {
               type: "range",
               min: "200",
-              max: "500",
+              max: "400",
               value: uiSettings?.sidebarWidth || 250,
               onChange: (e) => handleUISettingChange("sidebarWidth", parseInt(e.target.value)),
-              className: "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              disabled: !uiSettings?.showSidebar,
+              className: "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 disabled:opacity-50"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "헤더바 표시" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "주소창과 탭이 포함된 헤더바를 표시합니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: uiSettings?.showHeaderBar || false,
+              onChange: (e) => handleUISettingChange("showHeaderBar", e.target.checked),
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "테마" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: uiSettings?.theme || "auto",
+              onChange: (e) => handleUISettingChange("theme", e.target.value),
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "auto", children: "시스템 설정 따름" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "light", children: "라이트 모드" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dark", children: "다크 모드" })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "컴팩트 모드" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "UI 요소들을 더 작게 표시합니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: uiSettings?.compactMode || false,
+              onChange: (e) => handleUISettingChange("compactMode", e.target.checked),
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             }
           )
         ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-lg shadow-sm mb-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 border-b border-gray-200", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-900", children: "브라우저" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 mt-1", children: "브라우저 동작 관련 설정" })
-      ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white dark:bg-gray-800 shadow rounded-lg mb-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4 border-b border-gray-200 dark:border-gray-700", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-900 dark:text-white", children: "브라우저 설정" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 space-y-6", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "User-Agent" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "User-Agent 프리셋" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "select",
             {
               value: browserSettings?.userAgentPreset || "chrome",
               onChange: (e) => handleUserAgentPresetChange(e.target.value),
-              className: "block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500",
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "chrome", children: "Chrome (권장)" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "chrome", children: "Chrome" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "firefox", children: "Firefox" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "safari", children: "Safari" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "edge", children: "Microsoft Edge" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "edge", children: "Edge" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "custom", children: "사용자 정의" })
               ]
             }
-          ),
-          browserSettings?.userAgentPreset === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          )
+        ] }),
+        browserSettings?.userAgentPreset === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "사용자 정의 User-Agent" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
             "textarea",
             {
               value: browserSettings?.userAgent || "",
               onChange: (e) => handleBrowserSettingChange("userAgent", e.target.value),
-              className: "mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none",
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
               rows: 3,
-              placeholder: "사용자 정의 User-Agent 입력..."
+              placeholder: "사용자 정의 User-Agent 문자열을 입력하세요"
             }
           )
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "홈페이지" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "url",
-              value: browserSettings?.homePage || "",
-              onChange: (e) => handleBrowserSettingChange("homePage", e.target.value),
-              className: "block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500",
-              placeholder: "https://www.google.com"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "현재 User-Agent" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 break-all", children: browserSettings?.userAgent || "로딩 중..." })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "기본 검색 엔진" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "기본 검색 엔진" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
             {
               type: "url",
               value: browserSettings?.defaultSearchEngine || "",
               onChange: (e) => handleBrowserSettingChange("defaultSearchEngine", e.target.value),
-              className: "block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500",
-              placeholder: "https://www.google.com/search?q=%s"
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
+              placeholder: "https://www.google.com/search?q="
             }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-gray-500", children: "%s는 검색어로 치환됩니다" })
+          )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center space-x-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: browserSettings?.enableDevTools || false,
-                onChange: (e) => handleBrowserSettingChange("enableDevTools", e.target.checked),
-                className: "w-4 h-4 text-blue-600 rounded"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium text-gray-700", children: "개발자 도구 활성화" })
-          ] }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center space-x-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: browserSettings?.enableJavaScript || false,
-                onChange: (e) => handleBrowserSettingChange("enableJavaScript", e.target.checked),
-                className: "w-4 h-4 text-blue-600 rounded"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium text-gray-700", children: "JavaScript 활성화" })
-          ] }) })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "홈페이지" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "url",
+              value: browserSettings?.homePage || "",
+              onChange: (e) => handleBrowserSettingChange("homePage", e.target.value),
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
+              placeholder: "https://www.google.com"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium text-gray-900 dark:text-white mb-2", children: "다운로드 경로" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "text",
+              value: browserSettings?.downloadPath || "",
+              onChange: (e) => handleBrowserSettingChange("downloadPath", e.target.value),
+              className: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white",
+              placeholder: "~/Downloads"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "개발자 도구 활성화" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "개발자 도구에 접근할 수 있습니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: browserSettings?.enableDevTools || false,
+              onChange: (e) => handleBrowserSettingChange("enableDevTools", e.target.checked),
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "JavaScript 활성화" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "웹 페이지에서 JavaScript를 실행합니다." })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: browserSettings?.enableJavaScript || false,
+              onChange: (e) => handleBrowserSettingChange("enableJavaScript", e.target.checked),
+              className: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            }
+          )
         ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-lg shadow-sm border border-red-200", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 border-b border-red-200", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-red-600", children: "위험한 작업" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-red-500 mt-1", children: "주의해서 사용하세요" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white dark:bg-gray-800 shadow rounded-lg", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4 border-b border-gray-200 dark:border-gray-700", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-gray-900 dark:text-white", children: "설정 초기화" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-sm font-medium text-gray-900 dark:text-white", children: "모든 설정 초기화" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500 dark:text-gray-400", children: "모든 설정을 기본값으로 되돌립니다. 이 작업은 되돌릴 수 없습니다." })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
-            onClick: handleResetSettings,
-            className: "bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors",
-            children: "모든 설정 초기화"
+            onClick: resetSettings,
+            className: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2",
+            children: "초기화"
           }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-xs text-gray-600", children: "모든 설정이 기본값으로 되돌아갑니다. 이 작업은 되돌릴 수 없습니다." })
-      ] })
+        )
+      ] }) })
     ] })
   ] }) });
 };
@@ -12289,7 +12344,14 @@ const App = () => {
   const handleOpenPreferences = () => {
     setCurrentUrl("about:preferences");
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-screen flex flex-col bg-gray-900 text-white", children: [
+  reactExports.useEffect(() => {
+    if (window.electronAPI && window.electronAPI.onShowPreferences) {
+      window.electronAPI.onShowPreferences(() => {
+        setCurrentUrl("about:preferences");
+      });
+    }
+  }, []);
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Frame, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex flex-col", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       Header,
       {
@@ -12338,7 +12400,7 @@ const App = () => {
         onClose: () => setIsMemoryMonitorOpen(false)
       }
     )
-  ] });
+  ] }) });
 };
 const container = document.getElementById("root");
 if (container) {

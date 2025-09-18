@@ -1,5 +1,5 @@
 import React from 'react';
-import PreferencesPage from '../../PreferencesPage';
+import PreferencesPage from '../settings/PreferencesPage';
 
 interface MainContentProps {
     isAboutUrl: boolean;

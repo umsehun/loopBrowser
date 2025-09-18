@@ -255,6 +255,20 @@ export class IpcHandlers {
         ipcMain.on('navigate-to', (event: IpcMainEvent, url: string) => {
             try {
                 const activeTab = tabService.getActiveTab()
+                // Special internal pages (about:*) should be handled by renderer UI
+                if (url.startsWith('about:')) {
+                    const mainWindow = windowManager.getMainWindow()
+                    if (mainWindow) {
+                        if (url === 'about:preferences') {
+                            // hide web contents view so renderer preferences page is visible
+                            windowManager.hideWebContentsView()
+                            mainWindow.webContents.send('show-preferences')
+                        }
+                        // other about: pages can be added here
+                    }
+                    return
+                }
+
                 if (activeTab && activeTab.view) {
                     let formattedUrl = url
 
@@ -270,6 +284,8 @@ export class IpcHandlers {
                     }
 
                     activeTab.view.webContents.loadURL(formattedUrl)
+                    // Ensure WebContentsView is visible when navigating normal pages
+                    windowManager.showWebContentsView()
                     logger.info('Navigation requested via IPC', { originalUrl: url, formattedUrl })
                 } else {
                     logger.warn('No active tab for navigation', { url })
