@@ -11600,8 +11600,9 @@ class LoggerService {
     this.maxLogs = 1e3;
     this.timers = /* @__PURE__ */ new Map();
     this.processType = processType;
-    const envLogLevel = define_process_env_default.LOG_LEVEL?.toLowerCase();
-    const debugMode = define_process_env_default.DEBUG === "true" || false;
+    const safeEnv = typeof process !== "undefined" && define_process_env_default ? define_process_env_default : typeof window !== "undefined" ? window.__env__ || {} : {};
+    const envLogLevel = safeEnv.LOG_LEVEL && String(safeEnv.LOG_LEVEL).toLowerCase() || void 0;
+    const debugMode = safeEnv.DEBUG === "true" || safeEnv.NODE_ENV === "development";
     if (debugMode || envLogLevel === "debug") {
       this.logLevel = 0;
     } else if (envLogLevel === "info") {
@@ -11613,7 +11614,12 @@ class LoggerService {
     } else {
       this.logLevel = 0;
     }
-    console.log(`🔥 [LOGGER] Logger initialized - Level: ${LogLevel[this.logLevel]}, Process: ${this.processType}, ENV: ${"production"}, DEBUG: ${define_process_env_default.DEBUG}`);
+    try {
+      const nodeEnv = safeEnv.NODE_ENV || "unknown";
+      const debugFlag = safeEnv.DEBUG || "false";
+      console.log(`🔥 [LOGGER] Logger initialized - Level: ${LogLevel[this.logLevel]}, Process: ${this.processType}, ENV: ${nodeEnv}, DEBUG: ${debugFlag}`);
+    } catch (e) {
+    }
   }
   setLogLevel(level) {
     this.logLevel = level;
@@ -11637,8 +11643,9 @@ class LoggerService {
     const processPrefix = `[${this.processType.toUpperCase()}]`;
     const componentPrefix = `[${component}]`;
     const prefix = `${processPrefix}${componentPrefix} ${levelName}`;
-    const verboseMode = define_process_env_default.VERBOSE_LOGGING === "true";
-    const shouldForceOutput = define_process_env_default.DEBUG === "true" || false;
+    const safeEnv = typeof process !== "undefined" && define_process_env_default ? define_process_env_default : typeof window !== "undefined" ? window.__env__ || {} : {};
+    const verboseMode = safeEnv.VERBOSE_LOGGING === "true";
+    const shouldForceOutput = safeEnv.DEBUG === "true" || safeEnv.NODE_ENV === "development";
     if (level >= this.logLevel || shouldForceOutput) {
       const logMessage = `${timestamp} ${prefix}: ${message}`;
       const logData = verboseMode && data ? ` ${JSON.stringify(data)}` : "";
@@ -11709,7 +11716,8 @@ class LoggerService {
   }
   // 🔥 Timer 기능
   time(label) {
-    this.timers.set(label, performance.now());
+    const now = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+    this.timers.set(label, now);
     this.debug("TIMER", `Timer started: ${label}`);
   }
   timeEnd(label) {
@@ -11718,7 +11726,8 @@ class LoggerService {
       this.warn("TIMER", `Timer not found: ${label}`);
       return;
     }
-    const duration = performance.now() - startTime;
+    const now = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+    const duration = now - startTime;
     this.timers.delete(label);
     this.info("TIMER", `Timer completed: ${label}`, { duration: `${duration.toFixed(3)}ms` });
   }

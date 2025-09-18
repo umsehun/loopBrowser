@@ -1,5 +1,5 @@
-import { app } from 'electron'
-import { join } from 'path'
+// No top-level Node/Electron imports here to keep this module safe
+// for use in renderer/preload contexts where `process` may be undefined.
 
 // 🔥 기가차드 로거 시스템
 export enum LogLevel {
@@ -30,9 +30,10 @@ class LoggerService {
     constructor(processType: ProcessType = 'main') {
         this.processType = processType;
 
-        // 🔥 환경변수 기반 로그 레벨 설정
-        const envLogLevel = process.env.LOG_LEVEL?.toLowerCase();
-        const debugMode = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development';
+        // 🔥 환경변수 기반 로그 레벨 설정 (안전한 접근)
+        const safeEnv = (typeof process !== 'undefined' && process.env) ? process.env : (typeof window !== 'undefined' ? (window as any).__env__ || {} : {});
+        const envLogLevel = (safeEnv.LOG_LEVEL && String(safeEnv.LOG_LEVEL).toLowerCase()) || undefined;
+        const debugMode = (safeEnv.DEBUG === 'true') || (safeEnv.NODE_ENV === 'development');
 
         if (debugMode || envLogLevel === 'debug') {
             this.logLevel = LogLevel.DEBUG;
@@ -47,7 +48,16 @@ class LoggerService {
             this.logLevel = LogLevel.DEBUG;
         }
 
-        console.log(`🔥 [LOGGER] Logger initialized - Level: ${LogLevel[this.logLevel]}, Process: ${this.processType}, ENV: ${process.env.NODE_ENV}, DEBUG: ${process.env.DEBUG}`);
+        // 안전한 초기화 로그 (process가 없을 수 있음)
+        try {
+            const nodeEnv = safeEnv.NODE_ENV || 'unknown'
+            const debugFlag = safeEnv.DEBUG || 'false'
+            // avoid referencing process directly
+            // eslint-disable-next-line no-console
+            console.log(`🔥 [LOGGER] Logger initialized - Level: ${LogLevel[this.logLevel]}, Process: ${this.processType}, ENV: ${nodeEnv}, DEBUG: ${debugFlag}`);
+        } catch (e) {
+            // swallow any console errors in exotic environments
+        }
     }
 
     setLogLevel(level: LogLevel): void {
@@ -79,10 +89,11 @@ class LoggerService {
         const processPrefix = `[${this.processType.toUpperCase()}]`;
         const componentPrefix = `[${component}]`;
         const prefix = `${processPrefix}${componentPrefix} ${levelName}`;
-        const verboseMode = process.env.VERBOSE_LOGGING === 'true';
+        const safeEnv = (typeof process !== 'undefined' && process.env) ? process.env : (typeof window !== 'undefined' ? (window as any).__env__ || {} : {});
+        const verboseMode = safeEnv.VERBOSE_LOGGING === 'true';
 
         // 🔥 강제 출력: DEBUG 레벨도 항상 표시
-        const shouldForceOutput = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development';
+        const shouldForceOutput = safeEnv.DEBUG === 'true' || safeEnv.NODE_ENV === 'development';
 
         if (level >= this.logLevel || shouldForceOutput) {
             const logMessage = `${timestamp} ${prefix}: ${message}`;
@@ -176,7 +187,8 @@ class LoggerService {
 
     // 🔥 Timer 기능
     time(label: string): void {
-        this.timers.set(label, performance.now());
+        const now = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+        this.timers.set(label, now);
         this.debug('TIMER', `Timer started: ${label}`);
     }
 
@@ -187,7 +199,8 @@ class LoggerService {
             return;
         }
 
-        const duration = performance.now() - startTime;
+        const now = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+        const duration = now - startTime;
         this.timers.delete(label);
         this.info('TIMER', `Timer completed: ${label}`, { duration: `${duration.toFixed(3)}ms` });
     }
