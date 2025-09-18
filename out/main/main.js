@@ -793,6 +793,70 @@ class SettingsService {
   }
 }
 const settingsService = SettingsService.getInstance();
+const securityLogger = createModuleLogger("Security", "main");
+class SecurityManager {
+  constructor() {
+  }
+  static getInstance() {
+    if (!SecurityManager.instance) {
+      SecurityManager.instance = new SecurityManager();
+    }
+    return SecurityManager.instance;
+  }
+  /**
+   * CSP 헤더 생성
+   */
+  getCSPHeader() {
+    return [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com http://localhost:5173",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://localhost:5173",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https: blob: http://localhost:5173",
+      "connect-src 'self' https: wss: http://localhost:5173 ws://localhost:5173",
+      "media-src 'self' https: blob: http://localhost:5173",
+      "object-src 'none'",
+      "frame-src 'self' https: http://localhost:5173",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests"
+    ].join("; ");
+  }
+  /**
+   * CSP 적용
+   */
+  applyCSP(webContents) {
+    const cspHeader = this.getCSPHeader();
+    webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": [cspHeader]
+        }
+      });
+    });
+    securityLogger.info("CSP (Content Security Policy) applied to webContents");
+  }
+  /**
+   * 보안 검증
+   */
+  validateSecurity(url) {
+    try {
+      const urlObj = new URL(url);
+      const allowedProtocols = ["http:", "https:", "file:"];
+      if (!allowedProtocols.includes(urlObj.protocol)) {
+        securityLogger.warn("Blocked potentially unsafe protocol", { protocol: urlObj.protocol, url });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      securityLogger.error("Security validation failed", { url, error });
+      return false;
+    }
+  }
+}
+const securityManager = SecurityManager.getInstance();
 class WindowManager {
   constructor() {
     this.mainWindow = null;
@@ -844,7 +908,9 @@ class WindowManager {
       this.setupWindowEvents();
       this.mainWindow.center();
       await this.loadUI();
-      this.applyCSP();
+      if (this.mainWindow) {
+        securityManager.applyCSP(this.mainWindow.webContents);
+      }
       mainLogger$1.info("Main window created successfully", {
         width: windowWidth,
         height: windowHeight
@@ -854,38 +920,6 @@ class WindowManager {
       mainLogger$1.error("Failed to create main window", { error });
       throw error;
     }
-  }
-  // CSP (Content Security Policy) 적용
-  applyCSP() {
-    if (!this.mainWindow) return;
-    const cspHeader = this.getCSPHeader();
-    this.mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          "Content-Security-Policy": [cspHeader]
-        }
-      });
-    });
-    mainLogger$1.info("CSP (Content Security Policy) applied to main window");
-  }
-  // CSP 헤더 생성
-  getCSPHeader() {
-    return [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: https: blob:",
-      "connect-src 'self' https: wss:",
-      "media-src 'self' https: blob:",
-      "object-src 'none'",
-      "frame-src 'self' https:",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "frame-ancestors 'none'",
-      "upgrade-insecure-requests"
-    ].join("; ");
   }
   // 윈도우 이벤트 설정
   setupWindowEvents() {

@@ -74,6 +74,13 @@ export interface ElectronAPI {
 
     // 모든 리스너 제거
     removeAllListeners: () => void
+
+    // 메모리 모니터링 API
+    toggleMemoryMonitor: () => void
+    getMemoryStats: () => Promise<any>
+
+    // 메모리 모니터링 이벤트 리스너
+    onToggleMemoryMonitor: (callback: () => void) => void
 }
 
 // Window 인터페이스 확장

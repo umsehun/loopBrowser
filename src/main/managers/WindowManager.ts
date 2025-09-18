@@ -3,6 +3,7 @@ import { logger } from '../../shared/logger/index'
 import { devToolsService } from '../services/DevToolsService'
 import { tabService } from '../services/TabService'
 import { settingsService } from '../services/SettingsService'
+import { securityManager } from '../core/SecurityManager'
 import { UI_CONSTANTS } from '../../shared/constants'
 
 export class WindowManager {
@@ -79,8 +80,10 @@ export class WindowManager {
             // UI 로드 (React)
             await this.loadUI()
 
-            // CSP 적용
-            this.applyCSP()
+            // CSP 적용 (SecurityManager 사용)
+            if (this.mainWindow) {
+                securityManager.applyCSP(this.mainWindow.webContents)
+            }
 
             logger.info('Main window created successfully', {
                 width: windowWidth,
@@ -93,44 +96,6 @@ export class WindowManager {
             logger.error('Failed to create main window', { error })
             throw error
         }
-    }
-
-    // CSP (Content Security Policy) 적용
-    private applyCSP(): void {
-        if (!this.mainWindow) return
-
-        const cspHeader = this.getCSPHeader()
-
-        // 메인 윈도우에 CSP 헤더 설정
-        this.mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-            callback({
-                responseHeaders: {
-                    ...details.responseHeaders,
-                    'Content-Security-Policy': [cspHeader]
-                }
-            })
-        })
-
-        logger.info('CSP (Content Security Policy) applied to main window')
-    }
-
-    // CSP 헤더 생성
-    private getCSPHeader(): string {
-        return [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: https: blob:",
-            "connect-src 'self' https: wss:",
-            "media-src 'self' https: blob:",
-            "object-src 'none'",
-            "frame-src 'self' https:",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "frame-ancestors 'none'",
-            "upgrade-insecure-requests"
-        ].join('; ')
     }
 
     // 윈도우 이벤트 설정
